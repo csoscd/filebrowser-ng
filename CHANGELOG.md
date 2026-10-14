@@ -35,6 +35,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `docker-release.yml`: Multi-arch (amd64/arm64) build + push on GitHub release
   - `sbom.yml`: CycloneDX JSON SBOM attached to release
   - `auto-patch-release.yml`: Auto patch release on base image update
+- **`DB_PATH` environment variable** for configuring the SQLite database path (default: `/var/www/data/filebrowser.sqlite`)
 - **PHPUnit tests**: `SessionManagerTest`, `TranslatorTest` (unit); `ServerRepositoryTest` (integration)
 - **.semgrepignore**, **.gitleaks.toml** for CI false-positive suppression
 

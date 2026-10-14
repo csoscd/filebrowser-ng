@@ -61,6 +61,7 @@ Open `http://localhost:8080` and log in with your Samba credentials.
 | `LOG_LEVEL` | `info` | no | Monolog level (`debug`, `info`, `warning`, `error`) |
 | `LOG_MAX_DAYS` | `30` | no | Log rotation in days |
 | `I18N_LANGUAGE` | `en` | no | UI language (`en`, `de`) |
+| `DB_PATH` | `/var/www/data/filebrowser.sqlite` | no | SQLite database path |
 
 ### Volumes
 

@@ -14,6 +14,7 @@ services:
       LOG_LEVEL: "${LOG_LEVEL:-info}"
       LOG_MAX_DAYS: "${LOG_MAX_DAYS:-30}"
       I18N_LANGUAGE: "${I18N_LANGUAGE:-en}"
+      DB_PATH: "${DB_PATH:-/var/www/data/filebrowser.sqlite}"
     volumes:
       - /etc/localtime:/etc/localtime:ro
       - ./conf:/var/www/conf
