@@ -71,6 +71,11 @@ Open `http://localhost:8080` and log in with your Samba credentials.
 | `./data` | `/var/www/data` | SQLite database for custom shares |
 | `./log` | `/var/www/log` | Application log files |
 
+> **Permissions**: no manual `chown` needed on the Docker host. The container entrypoint
+> runs as `root` and sets ownership of all three directories to `nobody:nogroup`
+> (UID/GID 65534) at startup. Since the directories are bind-mounted, this also
+> updates the host-side ownership automatically.
+
 ---
 
 ## Architecture
