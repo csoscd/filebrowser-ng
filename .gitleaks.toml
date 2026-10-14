@@ -1,0 +1,6 @@
+[allowlist]
+  description = "Confirmed false positives in example/config files"
+  paths = [
+    ".env.example",
+    "docker-compose.yml",
+  ]

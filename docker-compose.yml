@@ -1,0 +1,21 @@
+services:
+  filebrowser-ng:
+    image: cs1711/filebrowser-ng:latest
+    container_name: filebrowser-ng
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      SMB_SERVER: "${SMB_SERVER}"
+      SMB_DOMAIN: "${SMB_DOMAIN:-}"
+      SESSION_LIFETIME: "${SESSION_LIFETIME:-3600}"
+      SESSION_NAME: "${SESSION_NAME:-filebrowser_sess}"
+      LOG_PATH: "/var/www/log/filebrowser-ng.log"
+      LOG_LEVEL: "${LOG_LEVEL:-info}"
+      LOG_MAX_DAYS: "${LOG_MAX_DAYS:-30}"
+      I18N_LANGUAGE: "${I18N_LANGUAGE:-en}"
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - ./conf:/var/www/conf
+      - ./data:/var/www/data
+      - ./log:/var/www/log

@@ -1,0 +1,77 @@
+################################################################################
+# Auto patch release – triggered after base image updates
+#
+# @author  Christian Schulz <technik@meinetechnikwelt.rocks>
+# @license GNU General Public License version 3 or later
+################################################################################
+
+name: Auto patch release
+
+on:
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: "Reason for the patch release"
+        required: false
+        default: "Rebuild for updated base images"
+  repository_dispatch:
+    types: [base-image-updated]
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+permissions:
+  contents: write
+
+jobs:
+  create-patch-release:
+    name: Increment patch version and create release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-tags: true
+
+      - name: Compute next patch tag
+        id: version
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          LATEST=$(gh release list --limit 1 --json tagName -q '.[0].tagName' 2>/dev/null || echo "")
+
+          if [ -z "$LATEST" ]; then
+            NEW_TAG="v0.0.1"
+          else
+            MAJOR=$(echo "$LATEST" | sed 's/^v//' | cut -d. -f1)
+            MINOR=$(echo "$LATEST" | sed 's/^v//' | cut -d. -f2)
+            PATCH=$(echo "$LATEST" | sed 's/^v//' | cut -d. -f3)
+            NEW_TAG="v${MAJOR}.${MINOR}.$((PATCH + 1))"
+          fi
+
+          echo "tag=${NEW_TAG}"      >> "$GITHUB_OUTPUT"
+          echo "previous=${LATEST}" >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub release ${{ steps.version.outputs.tag }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REASON: ${{ github.event.inputs.reason || github.event.client_payload.reason || 'Rebuild for updated base images' }}
+        run: |
+          TAG="${{ steps.version.outputs.tag }}"
+          PREV="${{ steps.version.outputs.previous }}"
+
+          NOTES="## ${TAG}
+
+          **${REASON}**
+
+          Rebuilds \`cs1711/filebrowser-ng\` on top of the latest base image.
+
+          Previous release: ${PREV}"
+
+          gh release create "${TAG}" \
+            --title "${TAG}" \
+            --notes "${NOTES}" \
+            --target main
+
+          echo "Release ${TAG} created."

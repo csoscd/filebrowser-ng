@@ -1,0 +1,9 @@
+vendor/
+composer.lock
+.env
+conf/
+data/
+log/
+*.sqlite
+*.log
+CLAUDE.md

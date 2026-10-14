@@ -1,0 +1,80 @@
+################################################################################
+# SBOM – CycloneDX JSON Software Bill of Materials
+#
+# @author  Christian Schulz <technik@meinetechnikwelt.rocks>
+# @license GNU General Public License version 3 or later
+################################################################################
+
+name: SBOM
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "Release tag to attach SBOM to (e.g. v1.0.0). Leave empty to skip upload."
+        required: false
+        default: ""
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+permissions:
+  contents: write
+
+jobs:
+  sbom:
+    name: Generate CycloneDX SBOM
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up PHP 8.4
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: mbstring
+          coverage: none
+
+      - name: Cache Composer packages
+        uses: actions/cache@v4
+        with:
+          path: vendor
+          key: ${{ runner.os }}-composer-${{ hashFiles('composer.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-composer-
+
+      - name: Install Composer dependencies (no dev)
+        run: composer install --no-interaction --prefer-dist --no-progress --no-dev
+
+      - name: Install CycloneDX Composer plugin
+        run: |
+          composer config allow-plugins.cyclonedx/cyclonedx-php-composer true
+          composer require --dev cyclonedx/cyclonedx-php-composer --no-interaction --no-progress
+
+      - name: Generate SBOM
+        env:
+          RELEASE_TAG: ${{ github.event.inputs.release_tag || github.ref_name }}
+        run: |
+          SBOM_FILE="filebrowser-ng-${RELEASE_TAG}-sbom.cyclonedx.json"
+          composer CycloneDX:make-sbom \
+            --output-format JSON \
+            --output-file "$SBOM_FILE" \
+            --no-interaction
+          echo "Generated ${SBOM_FILE}"
+          echo "SBOM_FILE=$SBOM_FILE" >> "$GITHUB_ENV"
+
+      - name: Attach SBOM to release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ github.event.inputs.release_tag || github.ref_name }}
+        run: |
+          if [ -z "$RELEASE_TAG" ]; then
+            echo "No release tag – skipping upload."
+            exit 0
+          fi
+          gh release upload "$RELEASE_TAG" "$SBOM_FILE" --clobber
+          echo "Uploaded $SBOM_FILE to release $RELEASE_TAG"

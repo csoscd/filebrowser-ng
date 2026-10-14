@@ -1,0 +1,107 @@
+################################################################################
+# GitHub Actions – Security checks
+#
+# Jobs:
+#   dependency-audit  – composer audit --no-dev
+#   semgrep           – SAST with PHP + OWASP Top 10 rule sets
+#   secret-scanning   – gitleaks
+#
+# @author  Christian Schulz <technik@meinetechnikwelt.rocks>
+# @license GNU General Public License version 3 or later
+################################################################################
+
+name: Security checks
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["**"]
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  dependency-audit:
+    name: Dependency audit (composer audit)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up PHP 8.4
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: mbstring
+          coverage: none
+
+      - name: Cache Composer packages
+        uses: actions/cache@v4
+        with:
+          path: vendor
+          key: ${{ runner.os }}-composer-${{ hashFiles('composer.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-composer-
+
+      - name: Install Composer dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress
+
+      - name: Run composer audit (production deps)
+        run: composer audit --no-dev
+
+  semgrep:
+    name: SAST – Semgrep (PHP + OWASP Top 10)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python (for Semgrep CLI)
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Install Semgrep
+        run: pip install semgrep --quiet
+
+      - name: Run Semgrep scan
+        run: |
+          semgrep scan \
+            --config "p/php" \
+            --config "p/owasp-top-ten" \
+            --error \
+            --quiet \
+            .
+        env:
+          SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
+
+  secret-scanning:
+    name: Secret scanning (gitleaks)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository (full history)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download and verify gitleaks
+        run: |
+          GITLEAKS_VERSION=8.30.1
+          TARBALL="gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          CHECKSUMS="gitleaks_${GITLEAKS_VERSION}_checksums.txt"
+          BASE_URL="https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}"
+
+          curl -sSL "${BASE_URL}/${TARBALL}"   -o "/tmp/${TARBALL}"
+          curl -sSL "${BASE_URL}/${CHECKSUMS}" -o "/tmp/${CHECKSUMS}"
+
+          cd /tmp && grep "${TARBALL}" "${CHECKSUMS}" | sha256sum -c -
+
+          tar -xz -C /usr/local/bin gitleaks < "/tmp/${TARBALL}"
+          gitleaks version
+
+      - name: Run gitleaks
+        run: gitleaks detect --config .gitleaks.toml --redact --source .

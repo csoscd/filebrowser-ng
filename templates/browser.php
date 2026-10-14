@@ -1,0 +1,562 @@
+<div
+    x-data="fileBrowser()"
+    x-init="init()"
+    class="flex flex-col h-screen"
+>
+    <!-- ── Top navigation ──────────────────────────────────────────────────── -->
+    <header class="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between shadow-sm flex-shrink-0">
+        <div class="flex items-center gap-3">
+            <div class="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center">
+                <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M3 7a2 2 0 012-2h3.586a1 1 0 01.707.293L11 7h10a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"/>
+                </svg>
+            </div>
+            <span class="font-semibold text-gray-900"><?= htmlspecialchars($t->t('app.name'), ENT_QUOTES) ?></span>
+        </div>
+        <div class="flex items-center gap-4">
+            <span class="text-sm text-gray-500 hidden sm:block">
+                <?= htmlspecialchars($t->t('nav.logged_in_as', ['user' => $username ?? '']), ENT_QUOTES) ?>
+            </span>
+            <a href="/auth/logout"
+               class="text-sm text-gray-600 hover:text-red-600 font-medium transition">
+                <?= htmlspecialchars($t->t('nav.logout'), ENT_QUOTES) ?>
+            </a>
+        </div>
+    </header>
+
+    <div class="flex flex-1 overflow-hidden">
+        <!-- ── Sidebar: shares ─────────────────────────────────────────────── -->
+        <aside class="w-56 bg-white border-r border-gray-200 flex flex-col flex-shrink-0 overflow-y-auto">
+            <div class="px-4 pt-4 pb-2">
+                <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                    <?= htmlspecialchars($t->t('browser.shares'), ENT_QUOTES) ?>
+                </p>
+            </div>
+
+            <template x-if="loadingShares">
+                <div class="px-4 py-3 text-sm text-gray-400">
+                    <?= htmlspecialchars($t->t('browser.loading'), ENT_QUOTES) ?>
+                </div>
+            </template>
+
+            <nav class="flex-1 px-2 pb-4">
+                <template x-for="share in shares" :key="share.name">
+                    <button
+                        @click="openShare(share.name)"
+                        :class="currentShare === share.name
+                            ? 'bg-blue-50 text-blue-700 font-medium'
+                            : 'text-gray-700 hover:bg-gray-100'"
+                        class="w-full text-left flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition mb-0.5"
+                    >
+                        <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                  d="M3 7a2 2 0 012-2h3.586a1 1 0 01.707.293L11 7h10a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"/>
+                        </svg>
+                        <span x-text="share.name" class="truncate"></span>
+                    </button>
+                </template>
+            </nav>
+        </aside>
+
+        <!-- ── Main content ────────────────────────────────────────────────── -->
+        <main class="flex-1 flex flex-col overflow-hidden bg-gray-50">
+
+            <!-- No share selected -->
+            <template x-if="!currentShare">
+                <div class="flex-1 flex items-center justify-center text-gray-400">
+                    <div class="text-center">
+                        <svg class="w-16 h-16 mx-auto mb-3 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                                  d="M3 7a2 2 0 012-2h3.586a1 1 0 01.707.293L11 7h10a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"/>
+                        </svg>
+                        <p><?= htmlspecialchars($t->t('browser.no_share'), ENT_QUOTES) ?></p>
+                    </div>
+                </div>
+            </template>
+
+            <template x-if="currentShare">
+                <div class="flex-1 flex flex-col overflow-hidden">
+
+                    <!-- Toolbar -->
+                    <div class="bg-white border-b border-gray-200 px-4 py-2 flex items-center gap-2 flex-wrap flex-shrink-0">
+                        <!-- Breadcrumb -->
+                        <nav class="flex items-center gap-1 text-sm flex-1 min-w-0">
+                            <button @click="navigate('')"
+                                    class="text-blue-600 hover:text-blue-800 font-medium truncate max-w-[6rem]"
+                                    x-text="currentShare"></button>
+                            <template x-for="(crumb, i) in breadcrumbs" :key="i">
+                                <span class="flex items-center gap-1">
+                                    <svg class="w-3 h-3 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                                    </svg>
+                                    <button @click="navigate(crumb.path)"
+                                            class="text-blue-600 hover:text-blue-800 truncate max-w-[8rem]"
+                                            x-text="crumb.name"></button>
+                                </span>
+                            </template>
+                        </nav>
+
+                        <!-- Action buttons -->
+                        <div class="flex items-center gap-2 flex-shrink-0">
+                            <button @click="showMkdirDialog = true"
+                                    class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm bg-white border border-gray-300
+                                           rounded-lg hover:bg-gray-50 transition font-medium text-gray-700">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                          d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+                                </svg>
+                                <span class="hidden sm:inline"><?= htmlspecialchars($t->t('browser.new_folder'), ENT_QUOTES) ?></span>
+                            </button>
+                            <label class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm bg-blue-600 text-white
+                                          rounded-lg hover:bg-blue-700 transition font-medium cursor-pointer">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                          d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
+                                </svg>
+                                <span class="hidden sm:inline"><?= htmlspecialchars($t->t('browser.upload'), ENT_QUOTES) ?></span>
+                                <input type="file" multiple class="hidden" @change="uploadFiles($event)">
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Upload progress -->
+                    <template x-if="uploading">
+                        <div class="bg-blue-50 border-b border-blue-200 px-4 py-2 text-sm text-blue-700 flex-shrink-0">
+                            <?= htmlspecialchars($t->t('upload.uploading'), ENT_QUOTES) ?>
+                        </div>
+                    </template>
+
+                    <!-- Flash message -->
+                    <template x-if="flash">
+                        <div x-text="flash"
+                             :class="flashType === 'error' ? 'bg-red-50 border-red-200 text-red-700' : 'bg-green-50 border-green-200 text-green-700'"
+                             class="border-b px-4 py-2 text-sm flex-shrink-0">
+                        </div>
+                    </template>
+
+                    <!-- Drop zone + file list -->
+                    <div
+                        class="flex-1 overflow-y-auto"
+                        @dragover.prevent="dragOver = true"
+                        @dragleave="dragOver = false"
+                        @drop.prevent="handleDrop($event)"
+                        :class="dragOver ? 'bg-blue-50 ring-2 ring-inset ring-blue-400' : ''"
+                    >
+                        <!-- Loading -->
+                        <template x-if="loadingFiles">
+                            <div class="flex items-center justify-center py-20 text-gray-400 text-sm">
+                                <?= htmlspecialchars($t->t('browser.loading'), ENT_QUOTES) ?>
+                            </div>
+                        </template>
+
+                        <!-- Empty -->
+                        <template x-if="!loadingFiles && files.length === 0">
+                            <div class="flex flex-col items-center justify-center py-20 text-gray-400">
+                                <svg class="w-12 h-12 mb-3 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                                          d="M3 7a2 2 0 012-2h3.586a1 1 0 01.707.293L11 7h10a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"/>
+                                </svg>
+                                <p class="text-sm"><?= htmlspecialchars($t->t('browser.empty'), ENT_QUOTES) ?></p>
+                                <p class="text-xs mt-1 text-gray-300"><?= htmlspecialchars($t->t('upload.drop'), ENT_QUOTES) ?></p>
+                            </div>
+                        </template>
+
+                        <!-- File table -->
+                        <template x-if="!loadingFiles && files.length > 0">
+                            <table class="w-full text-sm">
+                                <thead class="bg-white border-b border-gray-200 sticky top-0">
+                                    <tr>
+                                        <th class="text-left px-4 py-2.5 font-medium text-gray-600 w-full">
+                                            <?= htmlspecialchars($t->t('file.name'), ENT_QUOTES) ?>
+                                        </th>
+                                        <th class="text-right px-4 py-2.5 font-medium text-gray-600 whitespace-nowrap hidden sm:table-cell">
+                                            <?= htmlspecialchars($t->t('file.size'), ENT_QUOTES) ?>
+                                        </th>
+                                        <th class="text-right px-4 py-2.5 font-medium text-gray-600 whitespace-nowrap hidden md:table-cell">
+                                            <?= htmlspecialchars($t->t('file.modified'), ENT_QUOTES) ?>
+                                        </th>
+                                        <th class="px-4 py-2.5 font-medium text-gray-600 text-right">
+                                            <?= htmlspecialchars($t->t('file.actions'), ENT_QUOTES) ?>
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <template x-for="file in files" :key="file.path">
+                                        <tr class="border-b border-gray-100 hover:bg-white transition group">
+                                            <td class="px-4 py-2.5">
+                                                <button
+                                                    @click="file.type === 'dir' ? navigate(file.path) : null"
+                                                    :class="file.type === 'dir' ? 'cursor-pointer hover:text-blue-700' : 'cursor-default'"
+                                                    class="flex items-center gap-2.5 text-left w-full font-medium text-gray-800"
+                                                >
+                                                    <!-- Folder icon -->
+                                                    <template x-if="file.type === 'dir'">
+                                                        <svg class="w-5 h-5 text-yellow-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                                            <path d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z"/>
+                                                        </svg>
+                                                    </template>
+                                                    <!-- File icon -->
+                                                    <template x-if="file.type !== 'dir'">
+                                                        <svg class="w-5 h-5 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                                  d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>
+                                                        </svg>
+                                                    </template>
+                                                    <span x-text="file.name" class="truncate"></span>
+                                                </button>
+                                            </td>
+                                            <td class="px-4 py-2.5 text-right text-gray-500 whitespace-nowrap hidden sm:table-cell"
+                                                x-text="file.type === 'dir' ? '—' : formatSize(file.size)"></td>
+                                            <td class="px-4 py-2.5 text-right text-gray-500 whitespace-nowrap hidden md:table-cell"
+                                                x-text="formatDate(file.modified)"></td>
+                                            <td class="px-4 py-2.5 text-right">
+                                                <div class="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition">
+                                                    <!-- Download (files only) -->
+                                                    <template x-if="file.type !== 'dir'">
+                                                        <a :href="'/browser/download?share=' + encodeURIComponent(currentShare) + '&path=' + encodeURIComponent(file.path)"
+                                                           class="p-1.5 rounded hover:bg-gray-100 text-gray-500 hover:text-blue-600 transition"
+                                                           title="<?= htmlspecialchars($t->t('browser.download'), ENT_QUOTES) ?>">
+                                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                                      d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                                                            </svg>
+                                                        </a>
+                                                    </template>
+                                                    <!-- Rename -->
+                                                    <button @click="startRename(file)"
+                                                            class="p-1.5 rounded hover:bg-gray-100 text-gray-500 hover:text-gray-800 transition"
+                                                            title="<?= htmlspecialchars($t->t('browser.rename'), ENT_QUOTES) ?>">
+                                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                                  d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                                                        </svg>
+                                                    </button>
+                                                    <!-- Delete -->
+                                                    <button @click="startDelete(file)"
+                                                            class="p-1.5 rounded hover:bg-gray-100 text-gray-500 hover:text-red-600 transition"
+                                                            title="<?= htmlspecialchars($t->t('browser.delete'), ENT_QUOTES) ?>">
+                                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                                                        </svg>
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </table>
+                        </template>
+                    </div>
+                </div>
+            </template>
+        </main>
+    </div>
+
+    <!-- ── Modal: Rename ────────────────────────────────────────────────────── -->
+    <div x-show="showRenameDialog" x-cloak
+         class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4"
+         @keydown.escape.window="showRenameDialog = false">
+        <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6" @click.stop>
+            <h2 class="text-lg font-semibold mb-4">
+                <?= htmlspecialchars($t->t('dialog.rename.title'), ENT_QUOTES) ?>
+            </h2>
+            <label class="block text-sm font-medium text-gray-700 mb-1">
+                <?= htmlspecialchars($t->t('dialog.rename.label'), ENT_QUOTES) ?>
+            </label>
+            <input type="text" x-model="renameValue"
+                   @keydown.enter="confirmRename()"
+                   x-ref="renameInput"
+                   class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm
+                          focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4">
+            <div class="flex justify-end gap-2">
+                <button @click="showRenameDialog = false"
+                        class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition">
+                    <?= htmlspecialchars($t->t('dialog.rename.cancel'), ENT_QUOTES) ?>
+                </button>
+                <button @click="confirmRename()"
+                        class="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition">
+                    <?= htmlspecialchars($t->t('dialog.rename.confirm'), ENT_QUOTES) ?>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Modal: Delete ────────────────────────────────────────────────────── -->
+    <div x-show="showDeleteDialog" x-cloak
+         class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4"
+         @keydown.escape.window="showDeleteDialog = false">
+        <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6" @click.stop>
+            <h2 class="text-lg font-semibold mb-2">
+                <?= htmlspecialchars($t->t('dialog.delete.title'), ENT_QUOTES) ?>
+            </h2>
+            <p class="text-sm text-gray-600 mb-5"
+               x-text="'<?= htmlspecialchars(str_replace("'", "\\'", $t->t('dialog.delete.message', ['name' => ''])), ENT_QUOTES) ?>'.replace(':name', deleteTarget?.name ?? '')">
+            </p>
+            <div class="flex justify-end gap-2">
+                <button @click="showDeleteDialog = false"
+                        class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition">
+                    <?= htmlspecialchars($t->t('dialog.delete.cancel'), ENT_QUOTES) ?>
+                </button>
+                <button @click="confirmDelete()"
+                        class="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 transition">
+                    <?= htmlspecialchars($t->t('dialog.delete.confirm'), ENT_QUOTES) ?>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Modal: New folder ────────────────────────────────────────────────── -->
+    <div x-show="showMkdirDialog" x-cloak
+         class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4"
+         @keydown.escape.window="showMkdirDialog = false">
+        <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6" @click.stop>
+            <h2 class="text-lg font-semibold mb-4">
+                <?= htmlspecialchars($t->t('dialog.mkdir.title'), ENT_QUOTES) ?>
+            </h2>
+            <label class="block text-sm font-medium text-gray-700 mb-1">
+                <?= htmlspecialchars($t->t('dialog.mkdir.label'), ENT_QUOTES) ?>
+            </label>
+            <input type="text" x-model="mkdirValue"
+                   @keydown.enter="confirmMkdir()"
+                   x-ref="mkdirInput"
+                   class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm
+                          focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4">
+            <div class="flex justify-end gap-2">
+                <button @click="showMkdirDialog = false"
+                        class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition">
+                    <?= htmlspecialchars($t->t('dialog.mkdir.cancel'), ENT_QUOTES) ?>
+                </button>
+                <button @click="confirmMkdir()"
+                        class="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition">
+                    <?= htmlspecialchars($t->t('dialog.mkdir.confirm'), ENT_QUOTES) ?>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function fileBrowser() {
+    return {
+        shares: [],
+        loadingShares: true,
+        currentShare: null,
+        currentPath: '',
+        files: [],
+        loadingFiles: false,
+        dragOver: false,
+        uploading: false,
+        flash: null,
+        flashType: 'success',
+        flashTimer: null,
+
+        showRenameDialog: false,
+        renameTarget: null,
+        renameValue: '',
+
+        showDeleteDialog: false,
+        deleteTarget: null,
+
+        showMkdirDialog: false,
+        mkdirValue: '',
+
+        get breadcrumbs() {
+            if (!this.currentPath) return [];
+            const parts = this.currentPath.split('/').filter(Boolean);
+            return parts.map((name, i) => ({
+                name,
+                path: parts.slice(0, i + 1).join('/'),
+            }));
+        },
+
+        async init() {
+            await this.loadShares();
+        },
+
+        async loadShares() {
+            this.loadingShares = true;
+            try {
+                const res = await fetch('/api/shares');
+                const data = await res.json();
+                this.shares = data.auto ?? [];
+            } catch (e) {
+                this.showFlash('Failed to load shares', 'error');
+            } finally {
+                this.loadingShares = false;
+            }
+        },
+
+        async openShare(name) {
+            this.currentShare = name;
+            this.currentPath  = '';
+            await this.loadFiles();
+        },
+
+        async navigate(path) {
+            this.currentPath = path;
+            await this.loadFiles();
+        },
+
+        async loadFiles() {
+            if (!this.currentShare) return;
+            this.loadingFiles = true;
+            try {
+                const url = '/api/files?share=' + encodeURIComponent(this.currentShare)
+                          + '&path=' + encodeURIComponent(this.currentPath);
+                const res  = await fetch(url);
+                const data = await res.json();
+                this.files = data.files ?? [];
+            } catch (e) {
+                this.showFlash('Failed to load files', 'error');
+            } finally {
+                this.loadingFiles = false;
+            }
+        },
+
+        async uploadFiles(event) {
+            await this.doUpload(event.target.files);
+            event.target.value = '';
+        },
+
+        async handleDrop(event) {
+            this.dragOver = false;
+            await this.doUpload(event.dataTransfer.files);
+        },
+
+        async doUpload(fileList) {
+            if (!fileList || fileList.length === 0 || !this.currentShare) return;
+            this.uploading = true;
+            const fd = new FormData();
+            fd.append('share', this.currentShare);
+            fd.append('path', this.currentPath);
+            for (const f of fileList) {
+                fd.append('files[]', f);
+            }
+            try {
+                const res  = await fetch('/upload', { method: 'POST', body: fd });
+                const data = await res.json();
+                if (data.uploaded?.length > 0) {
+                    this.showFlash(data.uploaded.length + ' file(s) uploaded.', 'success');
+                }
+                if (data.failed?.length > 0) {
+                    this.showFlash('Failed: ' + data.failed.join(', '), 'error');
+                }
+                await this.loadFiles();
+            } catch (e) {
+                this.showFlash('Upload failed', 'error');
+            } finally {
+                this.uploading = false;
+            }
+        },
+
+        startRename(file) {
+            this.renameTarget = file;
+            this.renameValue  = file.name;
+            this.showRenameDialog = true;
+            this.$nextTick(() => this.$refs.renameInput?.focus());
+        },
+
+        async confirmRename() {
+            if (!this.renameValue.trim() || !this.renameTarget) return;
+            this.showRenameDialog = false;
+            try {
+                const res = await fetch('/file/rename', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        share:    this.currentShare,
+                        old_path: this.renameTarget.path,
+                        new_name: this.renameValue.trim(),
+                    }),
+                });
+                const data = await res.json();
+                if (data.success) {
+                    await this.loadFiles();
+                } else {
+                    this.showFlash(data.error ?? 'Rename failed', 'error');
+                }
+            } catch (e) {
+                this.showFlash('Rename failed', 'error');
+            }
+        },
+
+        startDelete(file) {
+            this.deleteTarget = file;
+            this.showDeleteDialog = true;
+        },
+
+        async confirmDelete() {
+            if (!this.deleteTarget) return;
+            this.showDeleteDialog = false;
+            try {
+                const res = await fetch('/file/delete', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        share: this.currentShare,
+                        path:  this.deleteTarget.path,
+                    }),
+                });
+                const data = await res.json();
+                if (data.success) {
+                    await this.loadFiles();
+                } else {
+                    this.showFlash(data.error ?? 'Delete failed', 'error');
+                }
+            } catch (e) {
+                this.showFlash('Delete failed', 'error');
+            }
+        },
+
+        async confirmMkdir() {
+            if (!this.mkdirValue.trim()) return;
+            this.showMkdirDialog = false;
+            try {
+                const res = await fetch('/file/mkdir', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        share: this.currentShare,
+                        path:  this.currentPath,
+                        name:  this.mkdirValue.trim(),
+                    }),
+                });
+                const data = await res.json();
+                if (data.success) {
+                    this.mkdirValue = '';
+                    await this.loadFiles();
+                } else {
+                    this.showFlash(data.error ?? 'Create folder failed', 'error');
+                }
+            } catch (e) {
+                this.showFlash('Create folder failed', 'error');
+            }
+        },
+
+        showFlash(msg, type = 'success') {
+            this.flash     = msg;
+            this.flashType = type;
+            clearTimeout(this.flashTimer);
+            this.flashTimer = setTimeout(() => { this.flash = null; }, 4000);
+        },
+
+        formatSize(bytes) {
+            if (bytes === 0) return '0 B';
+            const k = 1024;
+            const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+        },
+
+        formatDate(ts) {
+            if (!ts) return '—';
+            return new Date(ts * 1000).toLocaleString(undefined, {
+                year: 'numeric', month: '2-digit', day: '2-digit',
+                hour: '2-digit', minute: '2-digit',
+            });
+        },
+    };
+}
+</script>
