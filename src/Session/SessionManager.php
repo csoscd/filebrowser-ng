@@ -43,7 +43,9 @@ class SessionManager
 
     public function login(string $username, string $password): void
     {
-        session_regenerate_id(true);
+        if (session_status() === PHP_SESSION_ACTIVE) {
+            session_regenerate_id(true);
+        }
         $_SESSION['username']      = $username;
         $_SESSION['password']      = $password;
         $_SESSION['last_activity'] = time();

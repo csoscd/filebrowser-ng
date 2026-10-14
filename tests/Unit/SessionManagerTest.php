@@ -5,41 +5,43 @@ declare(strict_types=1);
 namespace Tests\Unit;
 
 use FilebrowserNg\Session\SessionManager;
-use Mockery;
 use Noodlehaus\Config;
 use PHPUnit\Framework\TestCase;
 
 class SessionManagerTest extends TestCase
 {
-    protected function tearDown(): void
+    private string $configFile;
+
+    protected function setUp(): void
     {
-        Mockery::close();
+        $this->configFile = tempnam(sys_get_temp_dir(), 'fbng_cfg_') . '.json';
+        file_put_contents($this->configFile, json_encode([
+            'session' => ['lifetime' => 3600, 'name' => 'test_sess'],
+        ]));
+        $_SESSION = [];
     }
 
-    private function makeConfig(array $values = []): Config
+    protected function tearDown(): void
     {
-        $defaults = [
-            'session.lifetime' => 3600,
-            'session.name'     => 'test_sess',
-        ];
-        $config = Mockery::mock(Config::class);
-        foreach (array_merge($defaults, $values) as $key => $value) {
-            $config->allows('get')->with($key, Mockery::any())->andReturn($value);
+        if (file_exists($this->configFile)) {
+            unlink($this->configFile);
         }
-        return $config;
+        $_SESSION = [];
+    }
+
+    private function makeManager(): SessionManager
+    {
+        return new SessionManager(new Config($this->configFile));
     }
 
     public function testIsNotAuthenticatedByDefault(): void
     {
-        $_SESSION = [];
-        $manager  = new SessionManager($this->makeConfig());
-        $this->assertFalse($manager->isAuthenticated());
+        $this->assertFalse($this->makeManager()->isAuthenticated());
     }
 
     public function testLoginSetsSessionData(): void
     {
-        $_SESSION = [];
-        $manager  = new SessionManager($this->makeConfig());
+        $manager = $this->makeManager();
         $manager->login('testuser', 'secret');
 
         $this->assertSame('testuser', $manager->getUsername());
@@ -49,11 +51,10 @@ class SessionManagerTest extends TestCase
 
     public function testGetAndSet(): void
     {
-        $_SESSION = [];
-        $manager  = new SessionManager($this->makeConfig());
+        $manager = $this->makeManager();
         $manager->set('foo', 'bar');
 
-        $this->assertSame('bar', $manager->get('foo'));
+        $this->assertSame('bar',     $manager->get('foo'));
         $this->assertNull($manager->get('nonexistent'));
         $this->assertSame('default', $manager->get('nonexistent', 'default'));
     }

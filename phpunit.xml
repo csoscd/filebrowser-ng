@@ -18,4 +18,12 @@
             <directory>src</directory>
         </include>
     </source>
+
+    <php>
+        <!-- hassankhan/config v2.1 is not fully PHP 8.4 compatible (implicit nullable types).
+             Suppress E_DEPRECATED (8192) at the ini level so vendor deprecations do not
+             produce exit-code 2 in CI. Our own source code triggers no E_DEPRECATED.
+             24575 = E_ALL (32767) & ~E_DEPRECATED (8192) -->
+        <ini name="error_reporting" value="24575"/>
+    </php>
 </phpunit>
