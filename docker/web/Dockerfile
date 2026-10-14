@@ -49,8 +49,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # The base image's PHP-FPM pool config has no user/group set.
-# Add an override so FPM workers run as nobody:nogroup.
-RUN printf '[www]\nuser = nobody\ngroup = nogroup\n' \
+# Our entrypoint runs as root (for chown of bind-mounted volumes), so
+# the FPM master also starts as root. Set worker user/group and socket
+# ownership so nginx workers (nobody:nogroup) can connect.
+RUN printf '[www]\nuser = nobody\ngroup = nogroup\nlisten.owner = nobody\nlisten.group = nogroup\nlisten.mode = 0660\n' \
     > /usr/local/etc/php-fpm.d/zz-user.conf
 
 # Composer vendor
