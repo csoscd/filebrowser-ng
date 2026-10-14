@@ -68,6 +68,7 @@ COPY --chown=nobody:nogroup public/       /var/www/html/public/
 RUN mkdir -p /var/www/conf /var/www/data /var/www/log \
     && chown -R nobody:nogroup /var/www/conf /var/www/data /var/www/log
 
+COPY docker/web/nginx-default.conf /etc/nginx/conf.d/default.conf
 COPY docker/web/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
