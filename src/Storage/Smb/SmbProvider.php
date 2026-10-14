@@ -25,7 +25,9 @@ class SmbProvider implements StorageProviderInterface
     {
         try {
             $domain = $options['domain'] ?? $this->domain;
-            $auth   = new BasicAuth($username, $domain, $password);
+            // Pass null for empty domain – BasicAuth with '' generates "-W ''"
+            // which causes smbclient to fail silently on some versions.
+            $auth   = new BasicAuth($username, $domain !== '' ? $domain : null, $password);
             $factory = new ServerFactory();
             $server  = $factory->createServer($host, $auth);
             $server->listShares(); // verify credentials
@@ -38,7 +40,6 @@ class SmbProvider implements StorageProviderInterface
                 'user'  => $username,
                 'error' => $e->getMessage(),
                 'class' => get_class($e),
-                'trace' => $e->getTraceAsString(),
             ]);
             return false;
         }
