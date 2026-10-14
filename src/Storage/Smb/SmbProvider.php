@@ -37,6 +37,8 @@ class SmbProvider implements StorageProviderInterface
                 'host'  => $host,
                 'user'  => $username,
                 'error' => $e->getMessage(),
+                'class' => get_class($e),
+                'trace' => $e->getTraceAsString(),
             ]);
             return false;
         }
