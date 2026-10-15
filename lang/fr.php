@@ -29,6 +29,9 @@ return [
     'browser.loading'             => 'Chargement…',
     'browser.empty'               => 'Ce dossier est vide.',
 
+    // Espace disque du partage
+    'share.disk.free_of'          => 'libre sur',
+
     // File table
     'file.name'                   => 'Nom',
     'file.size'                   => 'Taille',

@@ -16,6 +16,11 @@ class SmbProvider implements StorageProviderInterface
     /** @var array<string, IShare> */
     private array $shareCache = [];
 
+    private string $connectionHost     = '';
+    private string $connectionUsername = '';
+    private string $connectionPassword = '';
+    private string $connectionDomain   = '';
+
     public function __construct(
         private readonly LoggerInterface $logger,
         private readonly string $domain = '',
@@ -31,8 +36,12 @@ class SmbProvider implements StorageProviderInterface
             $factory = new ServerFactory();
             $server  = $factory->createServer($host, $auth);
             $server->listShares(); // verify credentials
-            $this->server     = $server;
-            $this->shareCache = [];
+            $this->server           = $server;
+            $this->shareCache       = [];
+            $this->connectionHost     = $host;
+            $this->connectionUsername = $username;
+            $this->connectionPassword = $password;
+            $this->connectionDomain   = $options['domain'] ?? $this->domain;
             return true;
         } catch (\Throwable $e) {
             $this->logger->warning('SMB connect failed', [
@@ -56,6 +65,54 @@ class SmbProvider implements StorageProviderInterface
             }
         }
         return $shares;
+    }
+
+    public function getDiskInfo(string $shareName): ?array
+    {
+        if ($this->connectionHost === '') {
+            return null;
+        }
+
+        $tmpCred = tempnam(sys_get_temp_dir(), 'fbng_cred_');
+        if ($tmpCred === false) {
+            return null;
+        }
+        try {
+            $creds = 'username=' . $this->connectionUsername . "\n"
+                   . 'password=' . $this->connectionPassword . "\n";
+            if ($this->connectionDomain !== '') {
+                $creds .= 'domain=' . $this->connectionDomain . "\n";
+            }
+            file_put_contents($tmpCred, $creds);
+            chmod($tmpCred, 0600);
+
+            $unc = '//' . $this->connectionHost . '/' . $shareName;
+            $cmd = 'smbclient ' . escapeshellarg($unc)
+                 . ' -A ' . escapeshellarg($tmpCred)
+                 . ' -c dskattr 2>/dev/null';
+
+            $output = [];
+            exec($cmd, $output);
+        } finally {
+            @unlink($tmpCred);
+        }
+
+        // Parse: "N blocks of size M. X blocks available"
+        foreach ($output as $line) {
+            if (preg_match(
+                '/(\d[\d,]*)\s+blocks\s+of\s+size\s+(\d[\d,]*)[\.\s]+(\d[\d,]*)\s+blocks\s+available/i',
+                $line, $m
+            )) {
+                $blockSize   = (int) str_replace(',', '', $m[2]);
+                $totalBlocks = (int) str_replace(',', '', $m[1]);
+                $freeBlocks  = (int) str_replace(',', '', $m[3]);
+                return [
+                    'total' => $totalBlocks * $blockSize,
+                    'free'  => $freeBlocks  * $blockSize,
+                ];
+            }
+        }
+        return null;
     }
 
     public function listDirectory(string $share, string $path = ''): array

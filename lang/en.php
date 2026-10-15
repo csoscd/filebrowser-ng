@@ -29,6 +29,9 @@ return [
     'browser.loading'             => 'Loading…',
     'browser.empty'               => 'This folder is empty.',
 
+    // Share disk info
+    'share.disk.free_of'          => 'free of',
+
     // File table
     'file.name'                   => 'Name',
     'file.size'                   => 'Size',

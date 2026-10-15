@@ -47,13 +47,34 @@
                         :class="currentShare === share.name
                             ? 'bg-blue-50 text-blue-700 font-medium'
                             : 'text-gray-700 hover:bg-gray-100'"
-                        class="w-full text-left flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition mb-0.5"
+                        class="w-full text-left px-3 py-2 rounded-lg text-sm transition mb-0.5"
                     >
-                        <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                  d="M3 7a2 2 0 012-2h3.586a1 1 0 01.707.293L11 7h10a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"/>
-                        </svg>
-                        <span x-text="share.name" class="truncate"></span>
+                        <div class="flex items-center gap-2">
+                            <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                      d="M3 7a2 2 0 012-2h3.586a1 1 0 01.707.293L11 7h10a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"/>
+                            </svg>
+                            <span x-text="share.name" class="truncate flex-1"></span>
+                        </div>
+                        <template x-if="share.disk">
+                            <div class="mt-1.5 pl-6">
+                                <div class="w-full bg-gray-200 rounded-full h-1"
+                                     :class="currentShare === share.name ? 'bg-blue-100' : 'bg-gray-200'">
+                                    <div class="h-1 rounded-full transition-all"
+                                         :class="((share.disk.total - share.disk.free) / share.disk.total) > 0.9
+                                             ? 'bg-red-500'
+                                             : ((share.disk.total - share.disk.free) / share.disk.total) > 0.75
+                                                 ? 'bg-yellow-400'
+                                                 : 'bg-blue-400'"
+                                         :style="'width:' + Math.round(((share.disk.total - share.disk.free) / share.disk.total) * 100) + '%'">
+                                    </div>
+                                </div>
+                                <p class="text-xs mt-0.5 tabular-nums"
+                                   :class="currentShare === share.name ? 'text-blue-500' : 'text-gray-400'"
+                                   x-text="formatSize(share.disk.free) + ' <?= addcslashes($t->t('share.disk.free_of'), "\\'") ?> ' + formatSize(share.disk.total)">
+                                </p>
+                            </div>
+                        </template>
                     </button>
                 </template>
             </nav>

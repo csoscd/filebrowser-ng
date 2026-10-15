@@ -41,7 +41,15 @@ class BrowserController
         $this->requireAuth();
         $this->connectSmb();
 
-        $auto   = $this->provider->listShares();
+        $auto = $this->provider->listShares();
+
+        if (method_exists($this->provider, 'getDiskInfo')) {
+            foreach ($auto as &$share) {
+                $share['disk'] = $this->provider->getDiskInfo($share['name']);
+            }
+            unset($share);
+        }
+
         $custom = $this->serverRepo->findByUser($this->session->getUsername() ?? '');
 
         Response::json(['auto' => $auto, 'custom' => $custom]);

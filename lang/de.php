@@ -29,6 +29,9 @@ return [
     'browser.loading'             => 'Wird geladen…',
     'browser.empty'               => 'Dieser Ordner ist leer.',
 
+    // Share-Speicherplatz
+    'share.disk.free_of'          => 'frei von',
+
     // File table
     'file.name'                   => 'Name',
     'file.size'                   => 'Größe',
