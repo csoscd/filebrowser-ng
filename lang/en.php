@@ -43,6 +43,8 @@ return [
     'upload.uploading'            => 'Uploading…',
     'upload.success'              => ':count file(s) uploaded.',
     'upload.failed'               => 'Failed: :files',
+    'upload.cancel'               => 'Cancel',
+    'upload.cancelled'            => 'Upload cancelled.',
 
     // Dialogs
     'dialog.movecopy.title'        => 'Move / Copy',

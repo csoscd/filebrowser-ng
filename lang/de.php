@@ -43,6 +43,8 @@ return [
     'upload.uploading'            => 'Wird hochgeladen…',
     'upload.success'              => ':count Datei(en) hochgeladen.',
     'upload.failed'               => 'Fehlgeschlagen: :files',
+    'upload.cancel'               => 'Abbrechen',
+    'upload.cancelled'            => 'Upload abgebrochen.',
 
     // Dialogs
     'dialog.movecopy.title'        => 'Verschieben / Kopieren',

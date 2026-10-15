@@ -43,6 +43,8 @@ return [
     'upload.uploading'            => 'Envoi en cours…',
     'upload.success'              => ':count fichier(s) envoyé(s).',
     'upload.failed'               => 'Échec : :files',
+    'upload.cancel'               => 'Annuler',
+    'upload.cancelled'            => 'Envoi annulé.',
 
     // Dialogs
     'dialog.movecopy.title'        => 'Déplacer / Copier',
