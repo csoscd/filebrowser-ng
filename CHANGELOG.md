@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [0.3.0] – unreleased
+## [0.3.0] – 2026-10-15
 
 ### Added
 
@@ -46,6 +46,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `BrowserController`: `shares()` returns new grouped format; `connectSmbForHost()` picks session credentials for the default server or extra credentials for additional servers
 - `BrowserController`: API endpoints (`shares`, `listFiles`, `download`, `downloadZip`, `saveSortPref`) now return JSON 401 on unauthenticated access via new `requireAuthApi()` method; the HTML index route continues to redirect to `/`
+- `FileActionController`: `copy()` and `move()` now handle cross-server operations – `dest_server` is read from the request; if it differs from the source server, the file is downloaded to a local temp file via the source connection and uploaded via a fresh destination connection; move additionally deletes the source after a successful upload
 - `FileActionController`, `UploadController`: all actions accept optional `server` parameter from request body
 - `SessionManager::destroy()`: guarded with `session_status()` check to prevent PHP warnings when no session is active
 - Router: `delete()` method added
