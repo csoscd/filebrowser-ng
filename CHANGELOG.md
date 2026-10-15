@@ -45,13 +45,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - `BrowserController`: `shares()` returns new grouped format; `connectSmbForHost()` picks session credentials for the default server or extra credentials for additional servers
+- `BrowserController`: API endpoints (`shares`, `listFiles`, `download`, `downloadZip`, `saveSortPref`) now return JSON 401 on unauthenticated access via new `requireAuthApi()` method; the HTML index route continues to redirect to `/`
 - `FileActionController`, `UploadController`: all actions accept optional `server` parameter from request body
+- `SessionManager::destroy()`: guarded with `session_status()` check to prevent PHP warnings when no session is active
 - Router: `delete()` method added
 
 ### Tests
 
+- **Test infrastructure**: `Response::$testMode` flag + `ResponseSentException` (thrown instead of `exit` in all Response methods); `tests/Helpers/TestRequest` (Request subclass bypassing superglobals)
 - `ServerRepositoryTest` rewritten to cover new server CRUD methods, cascade delete, `findSharesByServer`, and legacy alias methods
 - `SessionManagerTest` extended with tests for `setExtraCredentials`, `getExtraCredentials`, `hasExtraCredentials`, `clearExtraCredentials`
+- `ServerControllerTest` (13 tests): list, add (missing host, duplicate, connection failed, session creds, extra creds), remove, storeCredentials
+- `BrowserControllerSharesTest` (7 tests): response shape, default server entry, connection failure, user-added server, needs-credentials flag, extra-credentials from session, auth required
+- `ServerParameterTest` (5 tests): `server` parameter forwarding in `UploadController` and `FileActionController` for default server, extra server without credentials, extra server with stored credentials
 
 ---
 
