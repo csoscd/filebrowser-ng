@@ -143,27 +143,29 @@ class SmbProvider implements StorageProviderInterface
         );
     }
 
-    public function copy(string $share, string $sourcePath, string $destPath): void
+    public function copy(string $share, string $sourcePath, string $destPath, string $destShare = ''): void
     {
-        $smbShare = $this->getShare($share);
-        $this->copyRecursive($smbShare, $sourcePath, $destPath);
+        $srcSmbShare  = $this->getShare($share);
+        $destSmbShare = $destShare !== '' ? $this->getShare($destShare) : $srcSmbShare;
+        $this->copyRecursive($srcSmbShare, $sourcePath, $destSmbShare, $destPath);
     }
 
-    private function copyRecursive(IShare $share, string $src, string $dest): void
+    private function copyRecursive(IShare $srcShare, string $src, IShare $destShare, string $dest): void
     {
         $srcSmb  = '/' . ltrim($src,  '/');
         $destSmb = '/' . ltrim($dest, '/');
 
-        $info = $share->stat($srcSmb);
+        $info = $srcShare->stat($srcSmb);
         if ($info->isDirectory()) {
-            $share->mkdir($destSmb);
-            foreach ($share->dir($srcSmb) as $item) {
+            $destShare->mkdir($destSmb);
+            foreach ($srcShare->dir($srcSmb) as $item) {
                 if (in_array($item->getName(), ['.', '..'], true)) {
                     continue;
                 }
                 $this->copyRecursive(
-                    $share,
+                    $srcShare,
                     ltrim($src,  '/') . '/' . $item->getName(),
+                    $destShare,
                     ltrim($dest, '/') . '/' . $item->getName(),
                 );
             }
@@ -173,8 +175,8 @@ class SmbProvider implements StorageProviderInterface
                 throw new \RuntimeException('Failed to create temp file');
             }
             try {
-                $share->get($srcSmb, $tmpFile);
-                $share->put($tmpFile, $destSmb);
+                $srcShare->get($srcSmb, $tmpFile);
+                $destShare->put($tmpFile, $destSmb);
             } finally {
                 if (file_exists($tmpFile)) {
                     unlink($tmpFile);

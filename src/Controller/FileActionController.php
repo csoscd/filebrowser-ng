@@ -112,10 +112,11 @@ class FileActionController
     public function move(Request $request): void
     {
         $this->requireAuth();
-        $data    = $request->jsonBody();
-        $share   = (string) ($data['share']    ?? '');
-        $oldPath = (string) ($data['old_path'] ?? '');
-        $destDir = (string) ($data['dest_dir'] ?? '');
+        $data      = $request->jsonBody();
+        $share     = (string) ($data['share']      ?? '');
+        $oldPath   = (string) ($data['old_path']   ?? '');
+        $destDir   = (string) ($data['dest_dir']   ?? '');
+        $destShare = (string) ($data['dest_share'] ?? $share);
 
         if ($share === '' || $oldPath === '') {
             Response::json(['error' => 'share and old_path required'], 400);
@@ -126,12 +127,19 @@ class FileActionController
         $this->connectSmb();
 
         try {
-            $this->provider->rename($share, $oldPath, $newPath);
+            if ($destShare !== $share) {
+                // Cross-share move = copy + delete
+                $this->provider->copy($share, $oldPath, $newPath, $destShare);
+                $this->provider->delete($share, $oldPath);
+            } else {
+                $this->provider->rename($share, $oldPath, $newPath);
+            }
             $this->logger->info('Moved', [
-                'user'  => $this->session->getUsername(),
-                'share' => $share,
-                'from'  => $oldPath,
-                'to'    => $newPath,
+                'user'       => $this->session->getUsername(),
+                'from_share' => $share,
+                'from'       => $oldPath,
+                'to_share'   => $destShare,
+                'to'         => $newPath,
             ]);
             Response::json(['success' => true, 'new_path' => $newPath]);
         } catch (\Throwable $e) {
@@ -143,10 +151,11 @@ class FileActionController
     public function copy(Request $request): void
     {
         $this->requireAuth();
-        $data    = $request->jsonBody();
-        $share   = (string) ($data['share']    ?? '');
-        $srcPath = (string) ($data['src_path'] ?? '');
-        $destDir = (string) ($data['dest_dir'] ?? '');
+        $data      = $request->jsonBody();
+        $share     = (string) ($data['share']      ?? '');
+        $srcPath   = (string) ($data['src_path']   ?? '');
+        $destDir   = (string) ($data['dest_dir']   ?? '');
+        $destShare = (string) ($data['dest_share'] ?? $share);
 
         if ($share === '' || $srcPath === '') {
             Response::json(['error' => 'share and src_path required'], 400);
@@ -157,12 +166,13 @@ class FileActionController
         $this->connectSmb();
 
         try {
-            $this->provider->copy($share, $srcPath, $dstPath);
+            $this->provider->copy($share, $srcPath, $dstPath, $destShare);
             $this->logger->info('Copied', [
-                'user'  => $this->session->getUsername(),
-                'share' => $share,
-                'from'  => $srcPath,
-                'to'    => $dstPath,
+                'user'       => $this->session->getUsername(),
+                'from_share' => $share,
+                'from'       => $srcPath,
+                'to_share'   => $destShare,
+                'to'         => $dstPath,
             ]);
             Response::json(['success' => true, 'new_path' => $dstPath]);
         } catch (\Throwable $e) {

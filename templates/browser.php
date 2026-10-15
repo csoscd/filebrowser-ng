@@ -423,72 +423,103 @@
             <div x-show="!pickerExecuting" class="flex flex-col flex-1 overflow-hidden min-h-0">
                 <!-- Breadcrumb -->
                 <div class="px-4 py-2 flex items-center gap-1 text-sm border-b border-gray-100 bg-gray-50 flex-wrap flex-shrink-0">
-                    <button @click="pickerNavigate('')"
+                    <button @click="pickerGoToShares()"
                             class="font-medium text-blue-600 hover:text-blue-800 transition">
-                        <?= htmlspecialchars($t->t('dialog.picker.root'), ENT_QUOTES) ?>
+                        <?= htmlspecialchars($t->t('dialog.picker.shares'), ENT_QUOTES) ?>
                     </button>
                     <template x-for="(crumb, i) in pickerBreadcrumbs" :key="i">
                         <span class="flex items-center gap-1">
                             <svg class="w-3 h-3 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
                             </svg>
-                            <button @click="pickerNavigate(crumb.path)"
+                            <button @click="crumb.isShare ? pickerOpenShare(crumb.name) : pickerNavigate(crumb.path)"
                                     class="text-blue-600 hover:text-blue-800 transition truncate max-w-[8rem]"
                                     x-text="crumb.name"></button>
                         </span>
                     </template>
                 </div>
 
-                <!-- Folder list -->
+                <!-- List: shares (top level) or folders -->
                 <div class="flex-1 overflow-y-auto">
                     <template x-if="pickerLoading">
                         <div class="px-4 py-4 text-sm text-gray-400">
                             <?= htmlspecialchars($t->t('browser.loading'), ENT_QUOTES) ?>
                         </div>
                     </template>
-                    <template x-if="!pickerLoading && pickerFolders.length === 0">
-                        <div class="px-4 py-4 text-sm text-gray-400 italic">
-                            <?= htmlspecialchars($t->t('dialog.picker.empty'), ENT_QUOTES) ?>
+
+                    <!-- Shares list -->
+                    <template x-if="!pickerLoading && pickerShare === ''">
+                        <div>
+                            <template x-for="s in pickerShares" :key="s.name">
+                                <button @click="pickerOpenShare(s.name)"
+                                        class="w-full text-left flex items-center gap-2.5 px-4 py-2.5 hover:bg-blue-50 text-sm text-gray-700 transition">
+                                    <svg class="w-4 h-4 text-blue-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                              d="M3 7a2 2 0 012-2h3.586a1 1 0 01.707.293L11 7h10a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"/>
+                                    </svg>
+                                    <span x-text="s.name" class="truncate flex-1"></span>
+                                    <svg class="w-3.5 h-3.5 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                                    </svg>
+                                </button>
+                            </template>
                         </div>
                     </template>
-                    <template x-for="folder in pickerFolders" :key="folder.path">
-                        <button @click="pickerNavigate(folder.path)"
-                                class="w-full text-left flex items-center gap-2.5 px-4 py-2.5 hover:bg-blue-50 text-sm text-gray-700 transition">
-                            <svg class="w-4 h-4 text-yellow-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                                <path d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z"/>
-                            </svg>
-                            <span x-text="folder.name" class="truncate flex-1"></span>
-                            <svg class="w-3.5 h-3.5 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-                            </svg>
-                        </button>
+
+                    <!-- Folders list -->
+                    <template x-if="!pickerLoading && pickerShare !== ''">
+                        <div>
+                            <template x-if="pickerFolders.length === 0">
+                                <div class="px-4 py-4 text-sm text-gray-400 italic">
+                                    <?= htmlspecialchars($t->t('dialog.picker.empty'), ENT_QUOTES) ?>
+                                </div>
+                            </template>
+                            <template x-for="folder in pickerFolders" :key="folder.path">
+                                <button @click="pickerNavigate(folder.path)"
+                                        class="w-full text-left flex items-center gap-2.5 px-4 py-2.5 hover:bg-blue-50 text-sm text-gray-700 transition">
+                                    <svg class="w-4 h-4 text-yellow-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                        <path d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z"/>
+                                    </svg>
+                                    <span x-text="folder.name" class="truncate flex-1"></span>
+                                    <svg class="w-3.5 h-3.5 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                                    </svg>
+                                </button>
+                            </template>
+                        </div>
                     </template>
                 </div>
 
-                <!-- Current destination -->
-                <div class="px-4 py-2.5 border-t border-gray-100 bg-gray-50 text-xs text-gray-500 flex-shrink-0">
-                    <?= htmlspecialchars($t->t('dialog.picker.current'), ENT_QUOTES) ?>
-                    <span class="font-medium text-gray-700 ml-1"
-                          x-text="currentShare + (pickerPath !== '' ? '/' + pickerPath : '')"></span>
-                </div>
+                <!-- Current destination (only shown when inside a share) -->
+                <template x-if="pickerShare !== ''">
+                    <div class="px-4 py-2.5 border-t border-gray-100 bg-gray-50 text-xs text-gray-500 flex-shrink-0">
+                        <?= htmlspecialchars($t->t('dialog.picker.current'), ENT_QUOTES) ?>
+                        <span class="font-medium text-gray-700 ml-1"
+                              x-text="pickerShare + (pickerPath !== '' ? '/' + pickerPath : '')"></span>
+                    </div>
+                </template>
 
                 <!-- Hint -->
-                <p class="px-4 pb-2 text-xs text-gray-400">
+                <p class="px-4 pb-1 pt-1 text-xs text-gray-400">
                     <?= htmlspecialchars($t->t('dialog.picker.select_hint'), ENT_QUOTES) ?>
                 </p>
 
-                <!-- Action buttons -->
+                <!-- Action buttons (disabled at shares level) -->
                 <div class="px-5 py-4 border-t border-gray-100 flex gap-2 justify-end flex-shrink-0">
                     <button @click="showPickerDialog = false"
                             class="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-800 transition">
                         <?= htmlspecialchars($t->t('dialog.picker.cancel'), ENT_QUOTES) ?>
                     </button>
                     <button @click="executeFromPicker('copy')"
-                            class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition">
+                            :disabled="pickerShare === ''"
+                            :class="pickerShare === '' ? 'opacity-40 cursor-not-allowed' : 'hover:bg-gray-50'"
+                            class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg transition">
                         <?= htmlspecialchars($t->t('dialog.picker.copy_here'), ENT_QUOTES) ?>
                     </button>
                     <button @click="executeFromPicker('move')"
-                            class="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition">
+                            :disabled="pickerShare === ''"
+                            :class="pickerShare === '' ? 'opacity-40 cursor-not-allowed' : 'hover:bg-blue-700'"
+                            class="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg transition">
                         <?= htmlspecialchars($t->t('dialog.picker.move_here'), ENT_QUOTES) ?>
                     </button>
                 </div>
@@ -561,7 +592,9 @@ function fileBrowser() {
         mkdirValue: '',
 
         showPickerDialog: false,
+        pickerShare: '',
         pickerPath: '',
+        pickerShares: [],
         pickerFolders: [],
         pickerLoading: false,
         pickerExecuting: false,
@@ -596,12 +629,17 @@ function fileBrowser() {
         },
 
         get pickerBreadcrumbs() {
-            if (!this.pickerPath) return [];
-            const parts = this.pickerPath.split('/').filter(Boolean);
-            return parts.map((name, i) => ({
-                name,
-                path: parts.slice(0, i + 1).join('/'),
-            }));
+            if (!this.pickerShare) return [];
+            const crumbs = [{ name: this.pickerShare, path: '', isShare: true }];
+            if (this.pickerPath) {
+                const parts = this.pickerPath.split('/').filter(Boolean);
+                parts.forEach((name, i) => crumbs.push({
+                    name,
+                    path: parts.slice(0, i + 1).join('/'),
+                    isShare: false,
+                }));
+            }
+            return crumbs;
         },
 
         get breadcrumbs() {
@@ -784,30 +822,52 @@ function fileBrowser() {
         },
 
         async openPicker() {
-            this.pickerPath          = this.currentPath;
+            this.pickerShare         = '';
+            this.pickerPath          = '';
             this.pickerExecuting     = false;
             this.pickerExecuteStatus = '';
             this.showPickerDialog    = true;
-            await this.loadPickerFolders();
+            await this.loadPickerContent();
         },
 
-        async loadPickerFolders() {
+        async loadPickerContent() {
             this.pickerLoading = true;
             try {
-                const res  = await fetch('/api/files?share=' + encodeURIComponent(this.currentShare)
-                                       + '&path='  + encodeURIComponent(this.pickerPath));
-                const data = await res.json();
-                this.pickerFolders = (data.files ?? []).filter(f => f.type === 'dir');
+                if (this.pickerShare === '') {
+                    const res  = await fetch('/api/shares');
+                    const data = await res.json();
+                    this.pickerShares  = [...(data.auto ?? []), ...(data.custom ?? [])];
+                    this.pickerFolders = [];
+                } else {
+                    const res  = await fetch('/api/files?share=' + encodeURIComponent(this.pickerShare)
+                                           + '&path='  + encodeURIComponent(this.pickerPath));
+                    const data = await res.json();
+                    this.pickerFolders = (data.files ?? []).filter(f => f.type === 'dir');
+                    this.pickerShares  = [];
+                }
             } catch (e) {
+                this.pickerShares  = [];
                 this.pickerFolders = [];
             } finally {
                 this.pickerLoading = false;
             }
         },
 
+        async pickerOpenShare(name) {
+            this.pickerShare = name;
+            this.pickerPath  = '';
+            await this.loadPickerContent();
+        },
+
         async pickerNavigate(path) {
             this.pickerPath = path;
-            await this.loadPickerFolders();
+            await this.loadPickerContent();
+        },
+
+        async pickerGoToShares() {
+            this.pickerShare = '';
+            this.pickerPath  = '';
+            await this.loadPickerContent();
         },
 
         async executeFromPicker(operation) {
@@ -823,9 +883,11 @@ function fileBrowser() {
                     ? item.name + ' (' + (i + 1) + '/' + items.length + ')'
                     : item.name;
                 try {
+                    const destShareParam = this.pickerShare !== this.currentShare
+                        ? this.pickerShare : undefined;
                     const payload = operation === 'move'
-                        ? { share: this.currentShare, old_path: item.path, dest_dir: destDir }
-                        : { share: this.currentShare, src_path: item.path, dest_dir: destDir };
+                        ? { share: this.currentShare, old_path: item.path, dest_dir: destDir, dest_share: destShareParam }
+                        : { share: this.currentShare, src_path: item.path, dest_dir: destDir, dest_share: destShareParam };
                     const res  = await fetch(endpoint, {
                         method:  'POST',
                         headers: { 'Content-Type': 'application/json' },

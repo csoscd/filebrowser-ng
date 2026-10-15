@@ -76,6 +76,7 @@ return [
     'dialog.picker.copy_here' => 'Copy here',
     'dialog.picker.cancel'    => 'Cancel',
     'dialog.picker.root'      => 'Root',
+    'dialog.picker.shares'    => 'Shares',
     'dialog.picker.executing' => 'Working…',
 
     // JS error messages

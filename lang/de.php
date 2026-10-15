@@ -76,6 +76,7 @@ return [
     'dialog.picker.copy_here' => 'Hierhin kopieren',
     'dialog.picker.cancel'    => 'Abbrechen',
     'dialog.picker.root'      => 'Wurzel',
+    'dialog.picker.shares'    => 'Freigaben',
     'dialog.picker.executing' => 'Wird ausgeführt…',
 
     // JS error messages
