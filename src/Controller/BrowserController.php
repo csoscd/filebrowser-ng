@@ -30,6 +30,7 @@ class BrowserController
         echo $this->view->render('browser', [
             'username'      => $this->session->getUsername(),
             'defaultServer' => $this->config->get('smb.server', ''),
+            'chunkSize'     => (int) $this->config->get('upload.chunk_size', 10485760),
         ], 'layout');
     }
 

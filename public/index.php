@@ -103,6 +103,7 @@ $router->get('/api/shares',       fn($req) => $browser->shares($req));
 $router->get('/api/files',        fn($req) => $browser->listFiles($req));
 $router->get('/browser/download', fn($req) => $browser->download($req));
 $router->post('/upload',          fn($req) => $upload->upload($req));
+$router->post('/upload/chunk',    fn($req) => $upload->chunk($req));
 $router->post('/file/rename',     fn($req) => $actions->rename($req));
 $router->post('/file/delete',     fn($req) => $actions->delete($req));
 $router->post('/file/mkdir',      fn($req) => $actions->mkdir($req));

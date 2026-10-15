@@ -122,8 +122,19 @@
 
                     <!-- Upload progress -->
                     <template x-if="uploading">
-                        <div class="bg-blue-50 border-b border-blue-200 px-4 py-2 text-sm text-blue-700 flex-shrink-0">
-                            <?= htmlspecialchars($t->t('upload.uploading'), ENT_QUOTES) ?>
+                        <div class="bg-blue-50 border-b border-blue-200 px-4 py-2 flex-shrink-0">
+                            <div class="flex items-center justify-between text-sm text-blue-700 mb-1.5">
+                                <span class="truncate mr-2 min-w-0">
+                                    <span x-show="uploadFileCount > 1"
+                                          x-text="'(' + uploadFileIndex + '/' + uploadFileCount + ') '"></span>
+                                    <span x-text="uploadCurrent"></span>
+                                </span>
+                                <span class="flex-shrink-0 font-medium tabular-nums" x-text="uploadProgress + '%'"></span>
+                            </div>
+                            <div class="w-full bg-blue-200 rounded-full h-1.5">
+                                <div class="bg-blue-600 h-1.5 rounded-full transition-all duration-150"
+                                     :style="'width: ' + uploadProgress + '%'"></div>
+                            </div>
                         </div>
                     </template>
 
@@ -348,6 +359,11 @@ function fileBrowser() {
         loadingFiles: false,
         dragOver: false,
         uploading: false,
+        uploadProgress: 0,
+        uploadCurrent: '',
+        uploadFileIndex: 0,
+        uploadFileCount: 0,
+        chunkSize: <?= (int) ($chunkSize ?? 10485760) ?>,
         flash: null,
         flashType: 'success',
         flashTimer: null,
@@ -428,27 +444,55 @@ function fileBrowser() {
 
         async doUpload(fileList) {
             if (!fileList || fileList.length === 0 || !this.currentShare) return;
-            this.uploading = true;
-            const fd = new FormData();
-            fd.append('share', this.currentShare);
-            fd.append('path', this.currentPath);
-            for (const f of fileList) {
-                fd.append('files[]', f);
+            this.uploading      = true;
+            this.uploadFileCount = fileList.length;
+            const uploaded = [], failed = [];
+
+            for (let i = 0; i < fileList.length; i++) {
+                const file = fileList[i];
+                this.uploadFileIndex = i + 1;
+                this.uploadCurrent   = file.name;
+                this.uploadProgress  = 0;
+                try {
+                    await this.uploadChunked(file);
+                    uploaded.push(file.name);
+                } catch (e) {
+                    failed.push(file.name);
+                }
             }
-            try {
-                const res  = await fetch('/upload', { method: 'POST', body: fd });
+
+            this.uploading = false;
+            if (uploaded.length > 0) {
+                this.showFlash(uploaded.length + ' file(s) uploaded.', 'success');
+            }
+            if (failed.length > 0) {
+                this.showFlash('Failed: ' + failed.join(', '), 'error');
+            }
+            await this.loadFiles();
+        },
+
+        async uploadChunked(file) {
+            const total = Math.max(1, Math.ceil(file.size / this.chunkSize));
+            for (let i = 0; i < total; i++) {
+                const start = i * this.chunkSize;
+                const end   = Math.min(start + this.chunkSize, file.size);
+                const fd    = new FormData();
+                fd.append('share',       this.currentShare);
+                fd.append('path',        this.currentPath);
+                fd.append('filename',    file.name);
+                fd.append('chunk_index', i);
+                fd.append('chunk_total', total);
+                fd.append('chunk',       file.slice(start, end), file.name);
+
+                const res = await fetch('/upload/chunk', { method: 'POST', body: fd });
+                if (!res.ok) {
+                    const data = await res.json().catch(() => ({}));
+                    throw new Error(data.error ?? 'Chunk upload failed');
+                }
                 const data = await res.json();
-                if (data.uploaded?.length > 0) {
-                    this.showFlash(data.uploaded.length + ' file(s) uploaded.', 'success');
-                }
-                if (data.failed?.length > 0) {
-                    this.showFlash('Failed: ' + data.failed.join(', '), 'error');
-                }
-                await this.loadFiles();
-            } catch (e) {
-                this.showFlash('Upload failed', 'error');
-            } finally {
-                this.uploading = false;
+                if (data.error) throw new Error(data.error);
+
+                this.uploadProgress = Math.round((i + 1) / total * 100);
             }
         },
 

@@ -64,6 +64,101 @@ class UploadController
         Response::json(['uploaded' => $uploaded, 'failed' => $failed]);
     }
 
+    public function chunk(Request $request): void
+    {
+        $this->requireAuth();
+
+        $share      = (string) $request->getBody('share', '');
+        $path       = (string) $request->getBody('path', '');
+        $filename   = (string) $request->getBody('filename', '');
+        $chunkIndex = (int)    $request->getBody('chunk_index', 0);
+        $chunkTotal = (int)    $request->getBody('chunk_total', 1);
+        $chunkFile  = $request->getFile('chunk');
+
+        if ($share === '' || $filename === '' || $chunkFile === null) {
+            Response::json(['error' => 'missing parameters'], 400);
+        }
+        if ($chunkFile['error'] !== UPLOAD_ERR_OK) {
+            Response::json(['error' => 'upload error ' . $chunkFile['error']], 400);
+        }
+        if ($chunkTotal < 1 || $chunkIndex < 0 || $chunkIndex >= $chunkTotal) {
+            Response::json(['error' => 'invalid chunk parameters'], 400);
+        }
+
+        $tmpDir = sys_get_temp_dir()
+                . '/fbng_' . preg_replace('/[^a-zA-Z0-9]/', '', session_id())
+                . '_' . md5($share . '/' . ltrim($path, '/') . '/' . $filename);
+
+        if (!is_dir($tmpDir) && !mkdir($tmpDir, 0700, true)) {
+            Response::json(['error' => 'cannot create temp dir'], 500);
+        }
+
+        $chunkPath = $tmpDir . '/chunk_' . sprintf('%05d', $chunkIndex);
+        if (!move_uploaded_file($chunkFile['tmp_name'], $chunkPath)) {
+            Response::json(['error' => 'failed to store chunk'], 500);
+        }
+
+        // Not the last chunk yet
+        if ($chunkIndex < $chunkTotal - 1) {
+            Response::json(['ok' => true, 'chunk' => $chunkIndex]);
+        }
+
+        // Last chunk: assemble into chunk_00000 (append chunks 1..N to it), then upload
+        $assembledPath = $tmpDir . '/chunk_00000';
+
+        try {
+            $out = fopen($assembledPath, 'ab');
+            if ($out === false) {
+                throw new \RuntimeException('Cannot open assembled file for writing');
+            }
+            for ($i = 1; $i < $chunkTotal; $i++) {
+                $partPath = $tmpDir . '/chunk_' . sprintf('%05d', $i);
+                $in = fopen($partPath, 'rb');
+                if ($in === false) {
+                    fclose($out);
+                    throw new \RuntimeException("Chunk {$i} missing");
+                }
+                stream_copy_to_stream($in, $out);
+                fclose($in);
+                unlink($partPath);
+            }
+            fclose($out);
+
+            $this->connectSmb();
+
+            $targetPath = ltrim($path . '/' . $filename, '/');
+            $this->provider->putFile($share, $targetPath, $assembledPath);
+
+            $this->logger->info('Chunked upload complete', [
+                'user'   => $this->session->getUsername(),
+                'share'  => $share,
+                'path'   => $targetPath,
+                'chunks' => $chunkTotal,
+            ]);
+
+            Response::json(['done' => true]);
+        } catch (\Throwable $e) {
+            $this->logger->error('Chunked upload failed', [
+                'file'  => $filename,
+                'error' => $e->getMessage(),
+            ]);
+            Response::json(['error' => $e->getMessage()], 500);
+        } finally {
+            if (file_exists($assembledPath)) {
+                unlink($assembledPath);
+            }
+            for ($i = 1; $i < $chunkTotal; $i++) {
+                $p = $tmpDir . '/chunk_' . sprintf('%05d', $i);
+                if (file_exists($p)) {
+                    unlink($p);
+                }
+            }
+            if (is_dir($tmpDir)) {
+                @rmdir($tmpDir);
+            }
+        }
+    }
+
     /** @return array<array<string, mixed>> */
     private function normalizeFiles(array $files): array
     {
