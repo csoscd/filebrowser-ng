@@ -146,6 +146,80 @@
                         </div>
                     </template>
 
+                    <!-- Contextual action bar -->
+                    <template x-if="selected.length > 0">
+                        <div class="bg-blue-50 border-b border-blue-200 px-4 py-2 flex items-center gap-1.5 flex-shrink-0 flex-wrap">
+                            <span class="text-sm font-medium text-blue-700 mr-1"
+                                  x-text="selected.length + ' <?= $t->t('browser.selected') ?>'"></span>
+                            <button @click="clearSelection()"
+                                    class="p-1 rounded text-blue-500 hover:text-blue-700 hover:bg-blue-100 transition mr-2"
+                                    title="<?= htmlspecialchars($t->t('browser.deselect_all'), ENT_QUOTES) ?>">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                                </svg>
+                            </button>
+                            <div class="w-px h-4 bg-blue-300 mr-1 flex-shrink-0"></div>
+
+                            <!-- Download single file -->
+                            <template x-if="singleSelected && singleSelected.type !== 'dir'">
+                                <button @click="downloadSelected()"
+                                        class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition">
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                              d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                                    </svg>
+                                    <?= htmlspecialchars($t->t('browser.download'), ENT_QUOTES) ?>
+                                </button>
+                            </template>
+
+                            <!-- Download ZIP (multiple files only) -->
+                            <template x-if="selected.length > 1 && selectionIsAllFiles">
+                                <button @click="downloadZip()"
+                                        class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition">
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                              d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                                    </svg>
+                                    <?= htmlspecialchars($t->t('browser.download_zip'), ENT_QUOTES) ?>
+                                </button>
+                            </template>
+
+                            <!-- Move/Copy (single item) -->
+                            <template x-if="singleSelected">
+                                <button @click="startMoveCopy(singleSelected)"
+                                        class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition">
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                              d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
+                                    </svg>
+                                    <?= htmlspecialchars($t->t('browser.move_copy'), ENT_QUOTES) ?>
+                                </button>
+                            </template>
+
+                            <!-- Rename (single item) -->
+                            <template x-if="singleSelected">
+                                <button @click="startRename(singleSelected)"
+                                        class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition">
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                              d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                                    </svg>
+                                    <?= htmlspecialchars($t->t('browser.rename'), ENT_QUOTES) ?>
+                                </button>
+                            </template>
+
+                            <!-- Delete (always visible) -->
+                            <button @click="showDeleteDialog = true"
+                                    class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 transition ml-auto">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                          d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                                </svg>
+                                <?= htmlspecialchars($t->t('browser.delete'), ENT_QUOTES) ?>
+                            </button>
+                        </div>
+                    </template>
+
                     <!-- Drop zone + file list -->
                     <div
                         class="flex-1 overflow-y-auto"
@@ -178,6 +252,13 @@
                             <table class="w-full text-sm">
                                 <thead class="bg-white border-b border-gray-200 sticky top-0">
                                     <tr>
+                                        <th class="px-3 py-2.5 w-10" @click.stop>
+                                            <input type="checkbox"
+                                                   :checked="allSelected"
+                                                   :indeterminate.prop="selected.length > 0 && !allSelected"
+                                                   @change="toggleSelectAll()"
+                                                   class="rounded border-gray-300 text-blue-600 cursor-pointer focus:ring-blue-500">
+                                        </th>
                                         <th class="text-left px-4 py-2.5 font-medium text-gray-600 w-full cursor-pointer select-none hover:text-gray-900 transition-colors"
                                             @click="setSort('name')">
                                             <?= htmlspecialchars($t->t('file.name'), ENT_QUOTES) ?>
@@ -193,22 +274,21 @@
                                             <?= htmlspecialchars($t->t('file.modified'), ENT_QUOTES) ?>
                                             <span x-show="sortColumn === 'modified'" x-text="sortDir === 'asc' ? ' ↑' : ' ↓'" class="text-blue-500"></span>
                                         </th>
-                                        <th class="px-4 py-2.5 font-medium text-gray-600 text-right">
-                                            <?= htmlspecialchars($t->t('file.actions'), ENT_QUOTES) ?>
-                                        </th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     <template x-for="file in sortedFiles" :key="file.path">
-                                        <tr class="border-b border-gray-100 hover:bg-white transition group">
+                                        <tr @dblclick="file.type === 'dir' ? navigate(file.path) : openFile(file)"
+                                            :class="selected.includes(file.path) ? 'bg-blue-50' : 'hover:bg-white'"
+                                            class="border-b border-gray-100 transition cursor-pointer select-none">
+                                            <td class="px-3 py-2.5 w-10" @click.stop>
+                                                <input type="checkbox"
+                                                       :checked="selected.includes(file.path)"
+                                                       @change="toggleSelect(file.path)"
+                                                       class="rounded border-gray-300 text-blue-600 cursor-pointer focus:ring-blue-500">
+                                            </td>
                                             <td class="px-4 py-2.5">
-                                                <button
-                                                    @click="file.type === 'dir' ? navigate(file.path) : null"
-                                                    @dblclick="file.type === 'dir' ? navigate(file.path) : openFile(file)"
-                                                    :class="file.type === 'dir' ? 'cursor-pointer hover:text-blue-700' : 'cursor-pointer hover:text-blue-700'"
-                                                    :title="file.type !== 'dir' ? '<?= htmlspecialchars($t->t('browser.open_hint'), ENT_QUOTES) ?>' : ''"
-                                                    class="flex items-center gap-2.5 text-left w-full font-medium text-gray-800"
-                                                >
+                                                <div class="flex items-center gap-2.5 font-medium text-gray-800">
                                                     <!-- Folder icon -->
                                                     <template x-if="file.type === 'dir'">
                                                         <svg class="w-5 h-5 text-yellow-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
@@ -223,54 +303,12 @@
                                                         </svg>
                                                     </template>
                                                     <span x-text="file.name" class="truncate"></span>
-                                                </button>
+                                                </div>
                                             </td>
                                             <td class="px-4 py-2.5 text-right text-gray-500 whitespace-nowrap hidden sm:table-cell"
                                                 x-text="file.type === 'dir' ? '—' : formatSize(file.size)"></td>
                                             <td class="px-4 py-2.5 text-right text-gray-500 whitespace-nowrap hidden md:table-cell"
                                                 x-text="formatDate(file.modified)"></td>
-                                            <td class="px-4 py-2.5 text-right">
-                                                <div class="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition">
-                                                    <!-- Download (files only) -->
-                                                    <template x-if="file.type !== 'dir'">
-                                                        <a :href="'/browser/download?share=' + encodeURIComponent(currentShare) + '&path=' + encodeURIComponent(file.path)"
-                                                           class="p-1.5 rounded hover:bg-gray-100 text-gray-500 hover:text-blue-600 transition"
-                                                           title="<?= htmlspecialchars($t->t('browser.download'), ENT_QUOTES) ?>">
-                                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                                                      d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
-                                                            </svg>
-                                                        </a>
-                                                    </template>
-                                                    <!-- Move/Copy -->
-                                                    <button @click="startMoveCopy(file)"
-                                                            class="p-1.5 rounded hover:bg-gray-100 text-gray-500 hover:text-gray-800 transition"
-                                                            title="<?= htmlspecialchars($t->t('browser.move_copy'), ENT_QUOTES) ?>">
-                                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                                                  d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
-                                                        </svg>
-                                                    </button>
-                                                    <!-- Rename -->
-                                                    <button @click="startRename(file)"
-                                                            class="p-1.5 rounded hover:bg-gray-100 text-gray-500 hover:text-gray-800 transition"
-                                                            title="<?= htmlspecialchars($t->t('browser.rename'), ENT_QUOTES) ?>">
-                                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                                                  d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
-                                                        </svg>
-                                                    </button>
-                                                    <!-- Delete -->
-                                                    <button @click="startDelete(file)"
-                                                            class="p-1.5 rounded hover:bg-gray-100 text-gray-500 hover:text-red-600 transition"
-                                                            title="<?= htmlspecialchars($t->t('browser.delete'), ENT_QUOTES) ?>">
-                                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                                                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
-                                                        </svg>
-                                                    </button>
-                                                </div>
-                                            </td>
                                         </tr>
                                     </template>
                                 </tbody>
@@ -320,7 +358,9 @@
                 <?= htmlspecialchars($t->t('dialog.delete.title'), ENT_QUOTES) ?>
             </h2>
             <p class="text-sm text-gray-600 mb-5"
-               x-text="deleteMessage.replace(':name', deleteTarget?.name ?? '')">
+               x-text="selected.length === 1
+                   ? deleteMessage.replace(':name', singleSelected?.name ?? '')
+                   : deleteMessageMulti.replace(':count', selected.length)">
             </p>
             <div class="flex justify-end gap-2">
                 <button @click="showDeleteDialog = false"
@@ -431,9 +471,11 @@ function fileBrowser() {
         renameTarget: null,
         renameValue: '',
 
+        selected: [],
+
         showDeleteDialog: false,
-        deleteTarget: null,
         deleteMessage: '<?= addcslashes($t->t('dialog.delete.message'), "\\'") ?>',
+        deleteMessageMulti: '<?= addcslashes($t->t('dialog.delete.message_multi'), "\\'") ?>',
 
         showMkdirDialog: false,
         mkdirValue: '',
@@ -455,6 +497,19 @@ function fileBrowser() {
                 }
                 return this.sortDir === 'asc' ? cmp : -cmp;
             });
+        },
+
+        get allSelected() {
+            return this.sortedFiles.length > 0 && this.selected.length === this.sortedFiles.length;
+        },
+        get selectedFiles() {
+            return this.sortedFiles.filter(f => this.selected.includes(f.path));
+        },
+        get singleSelected() {
+            return this.selectedFiles.length === 1 ? this.selectedFiles[0] : null;
+        },
+        get selectionIsAllFiles() {
+            return this.selectedFiles.length > 0 && this.selectedFiles.every(f => f.type !== 'dir');
         },
 
         get breadcrumbs() {
@@ -497,6 +552,7 @@ function fileBrowser() {
         async loadFiles() {
             if (!this.currentShare) return;
             this.loadingFiles = true;
+            this.selected = [];
             try {
                 const url = '/api/files?share=' + encodeURIComponent(this.currentShare)
                           + '&path=' + encodeURIComponent(this.currentPath);
@@ -589,6 +645,52 @@ function fileBrowser() {
             window.open(url, '_blank');
         },
 
+        toggleSelect(path) {
+            const i = this.selected.indexOf(path);
+            if (i === -1) this.selected.push(path);
+            else this.selected.splice(i, 1);
+        },
+
+        toggleSelectAll() {
+            if (this.allSelected) {
+                this.selected = [];
+            } else {
+                this.selected = this.sortedFiles.map(f => f.path);
+            }
+        },
+
+        clearSelection() {
+            this.selected = [];
+        },
+
+        downloadSelected() {
+            if (!this.singleSelected || this.singleSelected.type === 'dir') return;
+            const url = '/browser/download?share=' + encodeURIComponent(this.currentShare)
+                      + '&path=' + encodeURIComponent(this.singleSelected.path);
+            window.open(url, '_blank');
+        },
+
+        async downloadZip() {
+            const paths = this.selectedFiles.filter(f => f.type !== 'dir').map(f => f.path);
+            if (paths.length === 0) return;
+            try {
+                const res = await fetch('/browser/download-zip', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ share: this.currentShare, paths }),
+                });
+                if (!res.ok) { this.showFlash('ZIP download failed', 'error'); return; }
+                const blob = await res.blob();
+                const url  = URL.createObjectURL(blob);
+                const a    = document.createElement('a');
+                a.href = url; a.download = 'download.zip';
+                document.body.appendChild(a); a.click();
+                document.body.removeChild(a); URL.revokeObjectURL(url);
+            } catch (e) {
+                this.showFlash('ZIP download failed', 'error');
+            }
+        },
+
         startMoveCopy(file) {
             this.moveCopyTarget  = file;
             this.moveCopyDestDir = this.currentPath;
@@ -675,32 +777,27 @@ function fileBrowser() {
             }
         },
 
-        startDelete(file) {
-            this.deleteTarget = file;
-            this.showDeleteDialog = true;
-        },
-
         async confirmDelete() {
-            if (!this.deleteTarget) return;
+            const filesToDelete = [...this.selectedFiles];
             this.showDeleteDialog = false;
-            try {
-                const res = await fetch('/file/delete', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        share: this.currentShare,
-                        path:  this.deleteTarget.path,
-                    }),
-                });
-                const data = await res.json();
-                if (data.success) {
-                    await this.loadFiles();
-                } else {
-                    this.showFlash(data.error ?? 'Delete failed', 'error');
+            const failed = [];
+            for (const file of filesToDelete) {
+                try {
+                    const res = await fetch('/file/delete', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ share: this.currentShare, path: file.path }),
+                    });
+                    const data = await res.json();
+                    if (!data.success) failed.push(file.name);
+                } catch (e) {
+                    failed.push(file.name);
                 }
-            } catch (e) {
-                this.showFlash('Delete failed', 'error');
             }
+            if (failed.length > 0) {
+                this.showFlash('Failed to delete: ' + failed.join(', '), 'error');
+            }
+            await this.loadFiles();
         },
 
         async confirmMkdir() {

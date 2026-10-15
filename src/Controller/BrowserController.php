@@ -88,6 +88,56 @@ class BrowserController
         }
     }
 
+    public function downloadZip(Request $request): void
+    {
+        $this->requireAuth();
+        $data  = $request->jsonBody();
+        $share = (string) ($data['share'] ?? '');
+        $paths = array_values(array_filter(array_map('strval', (array) ($data['paths'] ?? []))));
+
+        if ($share === '' || empty($paths)) {
+            Response::error('share and paths required', 400);
+        }
+
+        $this->connectSmb();
+
+        $tmpZip = tempnam(sys_get_temp_dir(), 'fbng_zip_');
+        $zip    = new \ZipArchive();
+        if ($zip->open($tmpZip, \ZipArchive::CREATE | \ZipArchive::OVERWRITE) !== true) {
+            @unlink($tmpZip);
+            Response::error('Failed to create ZIP archive', 500);
+        }
+
+        $added = 0;
+        foreach ($paths as $path) {
+            try {
+                $stream   = $this->provider->getFile($share, $path);
+                $contents = stream_get_contents($stream);
+                fclose($stream);
+                $zip->addFromString(basename($path), (string) $contents);
+                $added++;
+            } catch (\Throwable $e) {
+                $this->logger->warning('ZIP: skipped file', ['path' => $path, 'error' => $e->getMessage()]);
+            }
+        }
+
+        $zip->close();
+
+        if ($added === 0) {
+            @unlink($tmpZip);
+            Response::error('No files could be added to ZIP', 500);
+        }
+
+        $size = (int) filesize($tmpZip);
+        header('Content-Type: application/zip');
+        header('Content-Disposition: attachment; filename="download.zip"');
+        header('Content-Length: ' . $size);
+        header('Cache-Control: no-cache');
+        readfile($tmpZip);
+        @unlink($tmpZip);
+        exit;
+    }
+
     private function requireAuth(): void
     {
         if (!$this->session->isAuthenticated()) {
