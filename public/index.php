@@ -99,7 +99,7 @@ $serverRepo = new ServerRepository($dbPath);
 
 // ── Controllers ────────────────────────────────────────────────────────────
 $auth    = new AuthController($session, $provider, $view, $config, $logger);
-$browser = new BrowserController($session, $provider, $serverRepo, $view, $config, $logger);
+$browser = new BrowserController($session, $provider, $serverRepo, $prefRepo, $view, $config, $logger);
 $upload  = new UploadController($session, $provider, $config, $logger);
 $actions = new FileActionController($session, $provider, $config, $logger);
 
@@ -121,6 +121,7 @@ $router->post('/file/move',       fn($req) => $actions->move($req));
 $router->post('/file/copy',       fn($req) => $actions->copy($req));
 $router->post('/file/delete',     fn($req) => $actions->delete($req));
 $router->post('/file/mkdir',      fn($req) => $actions->mkdir($req));
+$router->post('/api/sort-pref',   fn($req) => $browser->saveSortPref($req));
 
 $router->get('/lang/{code}', function (Request $req, array $params) use ($session, $prefRepo): void {
     $allowed = ['en', 'de', 'fr'];

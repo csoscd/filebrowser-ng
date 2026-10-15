@@ -7,6 +7,7 @@ namespace FilebrowserNg\Controller;
 use FilebrowserNg\Http\Request;
 use FilebrowserNg\Http\Response;
 use FilebrowserNg\Repository\ServerRepository;
+use FilebrowserNg\Repository\UserPreferenceRepository;
 use FilebrowserNg\Session\SessionManager;
 use FilebrowserNg\Storage\StorageProviderInterface;
 use FilebrowserNg\View\TemplateEngine;
@@ -19,6 +20,7 @@ class BrowserController
         private readonly SessionManager $session,
         private readonly StorageProviderInterface $provider,
         private readonly ServerRepository $serverRepo,
+        private readonly UserPreferenceRepository $prefRepo,
         private readonly TemplateEngine $view,
         private readonly Config $config,
         private readonly LoggerInterface $logger,
@@ -59,7 +61,18 @@ class BrowserController
 
         try {
             $files = $this->provider->listDirectory($share, $path);
-            Response::json(['files' => $files, 'path' => $path, 'share' => $share]);
+
+            $username = $this->session->getUsername() ?? '';
+            $sortKey  = 'sort:' . $share . ':' . $path;
+            $sortRaw  = $this->prefRepo->get($username, $sortKey, '');
+            $sort     = $sortRaw !== '' ? json_decode($sortRaw, true) : null;
+
+            Response::json([
+                'files' => $files,
+                'path'  => $path,
+                'share' => $share,
+                'sort'  => $sort,
+            ]);
         } catch (\Throwable $e) {
             $this->logger->error('listFiles failed', ['error' => $e->getMessage()]);
             Response::json(['error' => 'Failed to list directory'], 500);
@@ -136,6 +149,27 @@ class BrowserController
         readfile($tmpZip);
         @unlink($tmpZip);
         exit;
+    }
+
+    public function saveSortPref(Request $request): void
+    {
+        $this->requireAuth();
+        $data   = $request->jsonBody();
+        $share  = (string) ($data['share']  ?? '');
+        $path   = (string) ($data['path']   ?? '');
+        $column = (string) ($data['column'] ?? 'name');
+        $dir    = (string) ($data['dir']    ?? 'asc');
+
+        if ($share === '' || !in_array($column, ['name', 'size', 'modified'], true)
+                          || !in_array($dir, ['asc', 'desc'], true)) {
+            Response::json(['error' => 'invalid input'], 400);
+        }
+
+        $username = $this->session->getUsername() ?? '';
+        $this->prefRepo->set($username, 'sort:' . $share . ':' . $path,
+            json_encode(['column' => $column, 'dir' => $dir]));
+
+        Response::json(['success' => true]);
     }
 
     private function requireAuth(): void

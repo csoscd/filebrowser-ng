@@ -689,6 +689,13 @@ function fileBrowser() {
                 const res  = await fetch(url);
                 const data = await res.json();
                 this.files = data.files ?? [];
+                if (data.sort?.column) {
+                    this.sortColumn = data.sort.column;
+                    this.sortDir    = data.sort.dir ?? 'asc';
+                } else {
+                    this.sortColumn = 'name';
+                    this.sortDir    = 'asc';
+                }
             } catch (e) {
                 this.showFlash(i18n.errorLoadFiles, 'error');
             } finally {
@@ -767,6 +774,21 @@ function fileBrowser() {
                 this.sortColumn = column;
                 this.sortDir    = 'asc';
             }
+            this.persistSortPref();
+        },
+
+        persistSortPref() {
+            if (!this.currentShare) return;
+            fetch('/api/sort-pref', {
+                method:  'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body:    JSON.stringify({
+                    share:  this.currentShare,
+                    path:   this.currentPath,
+                    column: this.sortColumn,
+                    dir:    this.sortDir,
+                }),
+            }).catch(() => {});
         },
 
         openFile(file) {
