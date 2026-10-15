@@ -3,8 +3,9 @@
 # filebrowser-ng – entrypoint.sh
 #
 # 1. Generate /var/www/conf/config.json from environment variables.
-# 2. Fix ownership of runtime directories.
-# 3. Start supervisord (nginx + php-fpm).
+# 2. Configure PHP upload limits and nginx body size from UPLOAD_CHUNK_SIZE.
+# 3. Fix ownership of runtime directories.
+# 4. Start supervisord (nginx + php-fpm).
 #
 # Required environment variables:
 #   SMB_SERVER   – Samba server hostname or IP
@@ -18,6 +19,7 @@
 #   LOG_MAX_DAYS          30
 #   I18N_LANGUAGE         en
 #   DB_PATH               /var/www/data/filebrowser.sqlite
+#   UPLOAD_CHUNK_SIZE     10485760   (bytes, default 10 MB)
 #
 # @author  Christian Schulz <technik@meinetechnikwelt.rocks>
 # @license GNU General Public License version 3 or later
@@ -40,6 +42,8 @@ mkdir -p /var/www/conf /var/www/data /var/www/log
 
 log_info "Generating ${CONFIG_FILE}..."
 
+UPLOAD_CHUNK_SIZE="${UPLOAD_CHUNK_SIZE:-10485760}"
+
 php -r "
 \$config = [
     'smb' => [
@@ -61,12 +65,27 @@ php -r "
     'database' => [
         'path' => getenv('DB_PATH') ?: '/var/www/data/filebrowser.sqlite',
     ],
+    'upload' => [
+        'chunk_size' => (int)(getenv('UPLOAD_CHUNK_SIZE') ?: 10485760),
+    ],
 ];
 file_put_contents('${CONFIG_FILE}', json_encode(\$config, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . PHP_EOL);
 echo 'Config written.' . PHP_EOL;
 "
 
 log_info "Config written."
+
+# ── PHP upload limits (chunk size + 2 MB overhead for form fields) ────────────
+CHUNK_MB=$(( (UPLOAD_CHUNK_SIZE / 1048576) + 2 ))
+cat > /usr/local/etc/php/conf.d/99-filebrowser-upload.ini <<EOF
+upload_max_filesize = ${CHUNK_MB}M
+post_max_size = ${CHUNK_MB}M
+EOF
+log_info "PHP upload limits set to ${CHUNK_MB}M."
+
+# ── nginx body size limit ─────────────────────────────────────────────────────
+echo "client_max_body_size ${CHUNK_MB}m;" > /etc/nginx/conf.d/upload-body-limit.conf
+log_info "nginx client_max_body_size set to ${CHUNK_MB}m."
 
 chown -R nobody:nogroup /var/www/conf /var/www/data /var/www/log
 log_info "Ownership fixed."

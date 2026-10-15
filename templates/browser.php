@@ -6,6 +6,13 @@
     <!-- ── Top navigation ──────────────────────────────────────────────────── -->
     <header class="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between shadow-sm flex-shrink-0">
         <div class="flex items-center gap-3">
+            <!-- Hamburger (mobile only) -->
+            <button @click="sidebarOpen = !sidebarOpen"
+                    class="md:hidden p-1 -ml-1 rounded-lg text-gray-500 hover:text-gray-700 hover:bg-gray-100 transition">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+                </svg>
+            </button>
             <div class="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center">
                 <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -25,9 +32,26 @@
         </div>
     </header>
 
-    <div class="flex flex-1 overflow-hidden">
+    <div class="flex flex-1 overflow-hidden relative">
+
+        <!-- ── Backdrop (mobile only) ──────────────────────────────────────── -->
+        <div x-show="sidebarOpen"
+             x-transition:enter="transition-opacity ease-out duration-200"
+             x-transition:enter-start="opacity-0"
+             x-transition:enter-end="opacity-100"
+             x-transition:leave="transition-opacity ease-in duration-150"
+             x-transition:leave-start="opacity-100"
+             x-transition:leave-end="opacity-0"
+             @click="sidebarOpen = false"
+             class="fixed inset-0 z-20 bg-black/40 md:hidden"
+             x-cloak></div>
+
         <!-- ── Sidebar: shares ─────────────────────────────────────────────── -->
-        <aside class="w-56 bg-white border-r border-gray-200 flex flex-col flex-shrink-0 overflow-y-auto">
+        <aside :class="sidebarOpen ? 'translate-x-0' : '-translate-x-full'"
+               class="fixed md:relative md:transform-none inset-y-0 left-0 z-30
+                      w-64 md:w-56 bg-white border-r border-gray-200
+                      flex flex-col flex-shrink-0 overflow-y-auto
+                      transform transition-transform duration-200 ease-in-out">
             <div class="px-4 pt-4 pb-2">
                 <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider">
                     <?= htmlspecialchars($t->t('browser.shares'), ENT_QUOTES) ?>
@@ -43,17 +67,38 @@
             <nav class="flex-1 px-2 pb-4">
                 <template x-for="share in shares" :key="share.name">
                     <button
-                        @click="openShare(share.name)"
+                        @click="openShare(share.name); sidebarOpen = false"
                         :class="currentShare === share.name
                             ? 'bg-blue-50 text-blue-700 font-medium'
                             : 'text-gray-700 hover:bg-gray-100'"
-                        class="w-full text-left flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition mb-0.5"
+                        class="w-full text-left px-3 py-2 rounded-lg text-sm transition mb-0.5"
                     >
-                        <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                  d="M3 7a2 2 0 012-2h3.586a1 1 0 01.707.293L11 7h10a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"/>
-                        </svg>
-                        <span x-text="share.name" class="truncate"></span>
+                        <div class="flex items-center gap-2">
+                            <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                      d="M3 7a2 2 0 012-2h3.586a1 1 0 01.707.293L11 7h10a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"/>
+                            </svg>
+                            <span x-text="share.name" class="truncate flex-1"></span>
+                        </div>
+                        <template x-if="share.disk">
+                            <div class="mt-1.5 pl-6">
+                                <div class="w-full bg-gray-200 rounded-full h-1"
+                                     :class="currentShare === share.name ? 'bg-blue-100' : 'bg-gray-200'">
+                                    <div class="h-1 rounded-full transition-all"
+                                         :class="((share.disk.total - share.disk.free) / share.disk.total) > 0.9
+                                             ? 'bg-red-500'
+                                             : ((share.disk.total - share.disk.free) / share.disk.total) > 0.75
+                                                 ? 'bg-yellow-400'
+                                                 : 'bg-blue-400'"
+                                         :style="'width:' + Math.round(((share.disk.total - share.disk.free) / share.disk.total) * 100) + '%'">
+                                    </div>
+                                </div>
+                                <p class="text-xs mt-0.5 tabular-nums"
+                                   :class="currentShare === share.name ? 'text-blue-500' : 'text-gray-400'"
+                                   x-text="formatSize(share.disk.free) + ' <?= addcslashes($t->t('share.disk.free_of'), "\\'") ?> ' + formatSize(share.disk.total)">
+                                </p>
+                            </div>
+                        </template>
                     </button>
                 </template>
             </nav>
@@ -108,30 +153,100 @@
                                 </svg>
                                 <span class="hidden sm:inline"><?= htmlspecialchars($t->t('browser.new_folder'), ENT_QUOTES) ?></span>
                             </button>
-                            <label class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm bg-blue-600 text-white
+                            <label class="relative inline-flex items-center gap-1.5 px-3 py-1.5 text-sm bg-blue-600 text-white
                                           rounded-lg hover:bg-blue-700 transition font-medium cursor-pointer">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                           d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
                                 </svg>
                                 <span class="hidden sm:inline"><?= htmlspecialchars($t->t('browser.upload'), ENT_QUOTES) ?></span>
+                                <template x-if="uploadQueue.filter(u => u.status === 'uploading' || u.status === 'pending').length > 0">
+                                    <span class="absolute -top-1.5 -right-1.5 min-w-[1.1rem] h-[1.1rem] flex items-center justify-center
+                                                 rounded-full bg-yellow-400 text-gray-900 text-[10px] font-bold leading-none px-1"
+                                          x-text="uploadQueue.filter(u => u.status === 'uploading' || u.status === 'pending').length"></span>
+                                </template>
                                 <input type="file" multiple class="hidden" @change="uploadFiles($event)">
                             </label>
                         </div>
                     </div>
-
-                    <!-- Upload progress -->
-                    <template x-if="uploading">
-                        <div class="bg-blue-50 border-b border-blue-200 px-4 py-2 text-sm text-blue-700 flex-shrink-0">
-                            <?= htmlspecialchars($t->t('upload.uploading'), ENT_QUOTES) ?>
-                        </div>
-                    </template>
 
                     <!-- Flash message -->
                     <template x-if="flash">
                         <div x-text="flash"
                              :class="flashType === 'error' ? 'bg-red-50 border-red-200 text-red-700' : 'bg-green-50 border-green-200 text-green-700'"
                              class="border-b px-4 py-2 text-sm flex-shrink-0">
+                        </div>
+                    </template>
+
+                    <!-- Contextual action bar -->
+                    <template x-if="selected.length > 0">
+                        <div class="bg-blue-50 border-b border-blue-200 px-4 py-2 flex items-center gap-1.5 flex-shrink-0 flex-wrap">
+                            <span class="text-sm font-medium text-blue-700 mr-1"
+                                  x-text="selected.length + ' <?= $t->t('browser.selected') ?>'"></span>
+                            <button @click="clearSelection()"
+                                    class="p-1 rounded text-blue-500 hover:text-blue-700 hover:bg-blue-100 transition mr-2"
+                                    title="<?= htmlspecialchars($t->t('browser.deselect_all'), ENT_QUOTES) ?>">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                                </svg>
+                            </button>
+                            <div class="w-px h-4 bg-blue-300 mr-1 flex-shrink-0"></div>
+
+                            <!-- Download single file -->
+                            <template x-if="singleSelected && singleSelected.type !== 'dir'">
+                                <button @click="downloadSelected()"
+                                        class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition">
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                              d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                                    </svg>
+                                    <?= htmlspecialchars($t->t('browser.download'), ENT_QUOTES) ?>
+                                </button>
+                            </template>
+
+                            <!-- Download ZIP (multiple files only) -->
+                            <template x-if="selected.length > 1 && selectionIsAllFiles">
+                                <button @click="downloadZip()"
+                                        class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition">
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                              d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                                    </svg>
+                                    <?= htmlspecialchars($t->t('browser.download_zip'), ENT_QUOTES) ?>
+                                </button>
+                            </template>
+
+                            <!-- Move/Copy (all selections) -->
+                            <button @click="openPicker()"
+                                    class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                          d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
+                                </svg>
+                                <?= htmlspecialchars($t->t('browser.move_copy'), ENT_QUOTES) ?>
+                            </button>
+
+                            <!-- Rename (single item) -->
+                            <template x-if="singleSelected">
+                                <button @click="startRename(singleSelected)"
+                                        class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition">
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                              d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                                    </svg>
+                                    <?= htmlspecialchars($t->t('browser.rename'), ENT_QUOTES) ?>
+                                </button>
+                            </template>
+
+                            <!-- Delete (always visible) -->
+                            <button @click="showDeleteDialog = true"
+                                    class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 transition ml-auto">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                          d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                                </svg>
+                                <?= htmlspecialchars($t->t('browser.delete'), ENT_QUOTES) ?>
+                            </button>
                         </div>
                     </template>
 
@@ -167,29 +282,43 @@
                             <table class="w-full text-sm">
                                 <thead class="bg-white border-b border-gray-200 sticky top-0">
                                     <tr>
-                                        <th class="text-left px-4 py-2.5 font-medium text-gray-600 w-full">
+                                        <th class="px-3 py-2.5 w-10" @click.stop>
+                                            <input type="checkbox"
+                                                   :checked="allSelected"
+                                                   :indeterminate.prop="selected.length > 0 && !allSelected"
+                                                   @change="toggleSelectAll()"
+                                                   class="rounded border-gray-300 text-blue-600 cursor-pointer focus:ring-blue-500">
+                                        </th>
+                                        <th class="text-left px-4 py-2.5 font-medium text-gray-600 w-full cursor-pointer select-none hover:text-gray-900 transition-colors"
+                                            @click="setSort('name')">
                                             <?= htmlspecialchars($t->t('file.name'), ENT_QUOTES) ?>
+                                            <span x-show="sortColumn === 'name'" x-text="sortDir === 'asc' ? ' ↑' : ' ↓'" class="text-blue-500"></span>
                                         </th>
-                                        <th class="text-right px-4 py-2.5 font-medium text-gray-600 whitespace-nowrap hidden sm:table-cell">
+                                        <th class="text-right px-4 py-2.5 font-medium text-gray-600 whitespace-nowrap hidden sm:table-cell cursor-pointer select-none hover:text-gray-900 transition-colors"
+                                            @click="setSort('size')">
                                             <?= htmlspecialchars($t->t('file.size'), ENT_QUOTES) ?>
+                                            <span x-show="sortColumn === 'size'" x-text="sortDir === 'asc' ? ' ↑' : ' ↓'" class="text-blue-500"></span>
                                         </th>
-                                        <th class="text-right px-4 py-2.5 font-medium text-gray-600 whitespace-nowrap hidden md:table-cell">
+                                        <th class="text-right px-4 py-2.5 font-medium text-gray-600 whitespace-nowrap hidden md:table-cell cursor-pointer select-none hover:text-gray-900 transition-colors"
+                                            @click="setSort('modified')">
                                             <?= htmlspecialchars($t->t('file.modified'), ENT_QUOTES) ?>
-                                        </th>
-                                        <th class="px-4 py-2.5 font-medium text-gray-600 text-right">
-                                            <?= htmlspecialchars($t->t('file.actions'), ENT_QUOTES) ?>
+                                            <span x-show="sortColumn === 'modified'" x-text="sortDir === 'asc' ? ' ↑' : ' ↓'" class="text-blue-500"></span>
                                         </th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    <template x-for="file in files" :key="file.path">
-                                        <tr class="border-b border-gray-100 hover:bg-white transition group">
+                                    <template x-for="file in sortedFiles" :key="file.path">
+                                        <tr @dblclick="file.type === 'dir' ? navigate(file.path) : openFile(file)"
+                                            :class="selected.includes(file.path) ? 'bg-blue-50' : 'hover:bg-white'"
+                                            class="border-b border-gray-100 transition cursor-pointer select-none">
+                                            <td class="px-3 py-2.5 w-10" @click.stop>
+                                                <input type="checkbox"
+                                                       :checked="selected.includes(file.path)"
+                                                       @change="toggleSelect(file.path)"
+                                                       class="rounded border-gray-300 text-blue-600 cursor-pointer focus:ring-blue-500">
+                                            </td>
                                             <td class="px-4 py-2.5">
-                                                <button
-                                                    @click="file.type === 'dir' ? navigate(file.path) : null"
-                                                    :class="file.type === 'dir' ? 'cursor-pointer hover:text-blue-700' : 'cursor-default'"
-                                                    class="flex items-center gap-2.5 text-left w-full font-medium text-gray-800"
-                                                >
+                                                <div class="flex items-center gap-2.5 font-medium text-gray-800">
                                                     <!-- Folder icon -->
                                                     <template x-if="file.type === 'dir'">
                                                         <svg class="w-5 h-5 text-yellow-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
@@ -204,45 +333,12 @@
                                                         </svg>
                                                     </template>
                                                     <span x-text="file.name" class="truncate"></span>
-                                                </button>
+                                                </div>
                                             </td>
                                             <td class="px-4 py-2.5 text-right text-gray-500 whitespace-nowrap hidden sm:table-cell"
                                                 x-text="file.type === 'dir' ? '—' : formatSize(file.size)"></td>
                                             <td class="px-4 py-2.5 text-right text-gray-500 whitespace-nowrap hidden md:table-cell"
                                                 x-text="formatDate(file.modified)"></td>
-                                            <td class="px-4 py-2.5 text-right">
-                                                <div class="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition">
-                                                    <!-- Download (files only) -->
-                                                    <template x-if="file.type !== 'dir'">
-                                                        <a :href="'/browser/download?share=' + encodeURIComponent(currentShare) + '&path=' + encodeURIComponent(file.path)"
-                                                           class="p-1.5 rounded hover:bg-gray-100 text-gray-500 hover:text-blue-600 transition"
-                                                           title="<?= htmlspecialchars($t->t('browser.download'), ENT_QUOTES) ?>">
-                                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                                                      d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
-                                                            </svg>
-                                                        </a>
-                                                    </template>
-                                                    <!-- Rename -->
-                                                    <button @click="startRename(file)"
-                                                            class="p-1.5 rounded hover:bg-gray-100 text-gray-500 hover:text-gray-800 transition"
-                                                            title="<?= htmlspecialchars($t->t('browser.rename'), ENT_QUOTES) ?>">
-                                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                                                  d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
-                                                        </svg>
-                                                    </button>
-                                                    <!-- Delete -->
-                                                    <button @click="startDelete(file)"
-                                                            class="p-1.5 rounded hover:bg-gray-100 text-gray-500 hover:text-red-600 transition"
-                                                            title="<?= htmlspecialchars($t->t('browser.delete'), ENT_QUOTES) ?>">
-                                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                                                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
-                                                        </svg>
-                                                    </button>
-                                                </div>
-                                            </td>
                                         </tr>
                                     </template>
                                 </tbody>
@@ -252,6 +348,144 @@
                 </div>
             </template>
         </main>
+    </div>
+
+    <!-- ── Upload Manager Panel ───────────────────────────────────────────── -->
+    <div x-show="showUploadPanel" x-cloak
+         x-transition:enter="transition ease-out duration-200"
+         x-transition:enter-start="opacity-0 translate-y-2"
+         x-transition:enter-end="opacity-100 translate-y-0"
+         x-transition:leave="transition ease-in duration-150"
+         x-transition:leave-start="opacity-100 translate-y-0"
+         x-transition:leave-end="opacity-0 translate-y-2"
+         class="fixed bottom-4 right-4 z-40 w-80 bg-white rounded-2xl shadow-2xl border border-gray-200 overflow-hidden">
+
+        <!-- Panel header -->
+        <div class="flex items-center justify-between px-4 py-2.5 bg-gray-50 border-b border-gray-200">
+            <div class="flex items-center gap-2">
+                <span class="text-sm font-semibold text-gray-800" x-text="i18n.uploadPanelTitle"></span>
+                <template x-if="uploadQueue.filter(u => u.status === 'uploading' || u.status === 'pending').length > 0">
+                    <span class="min-w-[1.2rem] h-5 flex items-center justify-center rounded-full
+                                 bg-blue-100 text-blue-700 text-xs font-bold px-1.5"
+                          x-text="uploadQueue.filter(u => u.status === 'uploading' || u.status === 'pending').length"></span>
+                </template>
+            </div>
+            <div class="flex items-center gap-1">
+                <!-- Clear done -->
+                <button @click="uploadQueue = uploadQueue.filter(u => u.status === 'pending' || u.status === 'uploading')"
+                        x-show="uploadQueue.some(u => u.status === 'done' || u.status === 'failed' || u.status === 'cancelled')"
+                        class="text-xs text-gray-400 hover:text-gray-600 px-1.5 py-0.5 rounded hover:bg-gray-100 transition"
+                        x-text="i18n.uploadPanelClear"></button>
+                <!-- Collapse -->
+                <button @click="uploadPanelCollapsed = !uploadPanelCollapsed"
+                        class="p-1 rounded text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition">
+                    <svg class="w-4 h-4 transition-transform" :class="uploadPanelCollapsed ? 'rotate-180' : ''"
+                         fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                    </svg>
+                </button>
+                <!-- Close -->
+                <button @click="showUploadPanel = false"
+                        class="p-1 rounded text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+
+        <!-- File list -->
+        <div x-show="!uploadPanelCollapsed" class="max-h-72 overflow-y-auto divide-y divide-gray-100">
+            <template x-for="item in uploadQueue" :key="item.id">
+                <div class="px-4 py-2.5">
+                    <div class="flex items-start gap-2">
+                        <!-- Status icon -->
+                        <div class="flex-shrink-0 mt-0.5">
+                            <template x-if="item.status === 'done'">
+                                <svg class="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                                </svg>
+                            </template>
+                            <template x-if="item.status === 'failed'">
+                                <svg class="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                                </svg>
+                            </template>
+                            <template x-if="item.status === 'cancelled'">
+                                <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/>
+                                </svg>
+                            </template>
+                            <template x-if="item.status === 'uploading'">
+                                <svg class="w-4 h-4 text-blue-500 animate-spin" fill="none" viewBox="0 0 24 24">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                                </svg>
+                            </template>
+                            <template x-if="item.status === 'pending'">
+                                <svg class="w-4 h-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                </svg>
+                            </template>
+                        </div>
+
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center gap-1">
+                                <span class="truncate text-sm font-medium text-gray-700 flex-1" x-text="item.name"></span>
+                                <!-- Cancel button -->
+                                <button x-show="item.status === 'pending' || item.status === 'uploading'"
+                                        @click="cancelQueueItem(item)"
+                                        class="flex-shrink-0 p-0.5 rounded text-gray-400 hover:text-red-500 hover:bg-red-50 transition">
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                                    </svg>
+                                </button>
+                            </div>
+
+                            <!-- Progress bar (uploading only) -->
+                            <template x-if="item.status === 'uploading'">
+                                <div class="mt-1">
+                                    <div class="flex justify-between text-xs text-gray-400 mb-0.5 tabular-nums">
+                                        <span x-text="item.finalizing ? formatSize(item.totalBytes) : formatSize(item.uploadedBytes) + ' / ' + formatSize(item.totalBytes)"></span>
+                                        <span class="flex gap-1.5 items-center">
+                                            <template x-if="item.finalizing">
+                                                <span class="text-blue-500 animate-pulse"><?= htmlspecialchars($t->t('upload.finalizing')) ?></span>
+                                            </template>
+                                            <template x-if="!item.finalizing">
+                                                <span class="flex gap-1.5 items-center">
+                                                    <span x-show="item.speed > 0" x-text="formatSpeed(item.speed)" class="text-blue-400"></span>
+                                                    <span x-text="item.progress + '%'"></span>
+                                                </span>
+                                            </template>
+                                        </span>
+                                    </div>
+                                    <div class="w-full bg-gray-200 rounded-full h-1">
+                                        <div class="h-1 rounded-full transition-all duration-150"
+                                             :class="item.finalizing ? 'bg-blue-400 animate-pulse w-full' : 'bg-blue-500'"
+                                             :style="item.finalizing ? '' : 'width:' + item.progress + '%'"></div>
+                                    </div>
+                                </div>
+                            </template>
+
+                            <!-- Status text (not uploading) -->
+                            <template x-if="item.status !== 'uploading'">
+                                <p class="text-xs mt-0.5"
+                                   :class="{
+                                       'text-green-600':  item.status === 'done',
+                                       'text-red-500':    item.status === 'failed',
+                                       'text-gray-400':   item.status === 'cancelled' || item.status === 'pending',
+                                   }"
+                                   x-text="item.status === 'done'      ? i18n.uploadStatusDone
+                                         : item.status === 'failed'    ? i18n.uploadStatusFailed
+                                         : item.status === 'cancelled' ? i18n.uploadStatusCancelled
+                                         : i18n.uploadStatusPending">
+                                </p>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+            </template>
+        </div>
     </div>
 
     <!-- ── Modal: Rename ────────────────────────────────────────────────────── -->
@@ -292,7 +526,9 @@
                 <?= htmlspecialchars($t->t('dialog.delete.title'), ENT_QUOTES) ?>
             </h2>
             <p class="text-sm text-gray-600 mb-5"
-               x-text="'<?= htmlspecialchars(str_replace("'", "\\'", $t->t('dialog.delete.message', ['name' => ''])), ENT_QUOTES) ?>'.replace(':name', deleteTarget?.name ?? '')">
+               x-text="selected.length === 1
+                   ? deleteMessage.replace(':name', singleSelected?.name ?? '')
+                   : deleteMessageMulti.replace(':count', selected.length)">
             </p>
             <div class="flex justify-end gap-2">
                 <button @click="showDeleteDialog = false"
@@ -335,32 +571,254 @@
             </div>
         </div>
     </div>
+    <!-- ── Modal: Folder Picker (Move / Copy) ──────────────────────────────── -->
+    <div x-show="showPickerDialog" x-cloak
+         class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4"
+         @keydown.escape.window="!pickerExecuting && (showPickerDialog = false)">
+        <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm flex flex-col overflow-hidden" style="max-height:80vh" @click.stop>
+            <!-- Header -->
+            <div class="px-5 pt-5 pb-3 border-b border-gray-100 flex items-center justify-between flex-shrink-0">
+                <h2 class="text-lg font-semibold text-gray-900">
+                    <?= htmlspecialchars($t->t('dialog.picker.title'), ENT_QUOTES) ?>
+                </h2>
+                <button x-show="!pickerExecuting" @click="showPickerDialog = false"
+                        class="text-gray-400 hover:text-gray-600 transition">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+
+            <!-- Folder browser (shown while not executing) -->
+            <div x-show="!pickerExecuting" class="flex flex-col flex-1 overflow-hidden min-h-0">
+                <!-- Breadcrumb -->
+                <div class="px-4 py-2 flex items-center gap-1 text-sm border-b border-gray-100 bg-gray-50 flex-wrap flex-shrink-0">
+                    <button @click="pickerGoToShares()"
+                            class="font-medium text-blue-600 hover:text-blue-800 transition">
+                        <?= htmlspecialchars($t->t('dialog.picker.shares'), ENT_QUOTES) ?>
+                    </button>
+                    <template x-for="(crumb, i) in pickerBreadcrumbs" :key="i">
+                        <span class="flex items-center gap-1">
+                            <svg class="w-3 h-3 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                            </svg>
+                            <button @click="crumb.isShare ? pickerOpenShare(crumb.name) : pickerNavigate(crumb.path)"
+                                    class="text-blue-600 hover:text-blue-800 transition truncate max-w-[8rem]"
+                                    x-text="crumb.name"></button>
+                        </span>
+                    </template>
+                </div>
+
+                <!-- List: shares (top level) or folders -->
+                <div class="flex-1 overflow-y-auto">
+                    <template x-if="pickerLoading">
+                        <div class="px-4 py-4 text-sm text-gray-400">
+                            <?= htmlspecialchars($t->t('browser.loading'), ENT_QUOTES) ?>
+                        </div>
+                    </template>
+
+                    <!-- Shares list -->
+                    <template x-if="!pickerLoading && pickerShare === ''">
+                        <div>
+                            <template x-for="s in pickerShares" :key="s.name">
+                                <button @click="pickerOpenShare(s.name)"
+                                        class="w-full text-left flex items-center gap-2.5 px-4 py-2.5 hover:bg-blue-50 text-sm text-gray-700 transition">
+                                    <svg class="w-4 h-4 text-blue-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                              d="M3 7a2 2 0 012-2h3.586a1 1 0 01.707.293L11 7h10a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"/>
+                                    </svg>
+                                    <span x-text="s.name" class="truncate flex-1"></span>
+                                    <svg class="w-3.5 h-3.5 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                                    </svg>
+                                </button>
+                            </template>
+                        </div>
+                    </template>
+
+                    <!-- Folders list -->
+                    <template x-if="!pickerLoading && pickerShare !== ''">
+                        <div>
+                            <template x-if="pickerFolders.length === 0">
+                                <div class="px-4 py-4 text-sm text-gray-400 italic">
+                                    <?= htmlspecialchars($t->t('dialog.picker.empty'), ENT_QUOTES) ?>
+                                </div>
+                            </template>
+                            <template x-for="folder in pickerFolders" :key="folder.path">
+                                <button @click="pickerNavigate(folder.path)"
+                                        class="w-full text-left flex items-center gap-2.5 px-4 py-2.5 hover:bg-blue-50 text-sm text-gray-700 transition">
+                                    <svg class="w-4 h-4 text-yellow-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                        <path d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z"/>
+                                    </svg>
+                                    <span x-text="folder.name" class="truncate flex-1"></span>
+                                    <svg class="w-3.5 h-3.5 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                                    </svg>
+                                </button>
+                            </template>
+                        </div>
+                    </template>
+                </div>
+
+                <!-- Current destination (only shown when inside a share) -->
+                <template x-if="pickerShare !== ''">
+                    <div class="px-4 py-2.5 border-t border-gray-100 bg-gray-50 text-xs text-gray-500 flex-shrink-0">
+                        <?= htmlspecialchars($t->t('dialog.picker.current'), ENT_QUOTES) ?>
+                        <span class="font-medium text-gray-700 ml-1"
+                              x-text="pickerShare + (pickerPath !== '' ? '/' + pickerPath : '')"></span>
+                    </div>
+                </template>
+
+                <!-- Hint -->
+                <p class="px-4 pb-1 pt-1 text-xs text-gray-400">
+                    <?= htmlspecialchars($t->t('dialog.picker.select_hint'), ENT_QUOTES) ?>
+                </p>
+
+                <!-- Action buttons (disabled at shares level) -->
+                <div class="px-5 py-4 border-t border-gray-100 flex gap-2 justify-end flex-shrink-0">
+                    <button @click="showPickerDialog = false"
+                            class="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-800 transition">
+                        <?= htmlspecialchars($t->t('dialog.picker.cancel'), ENT_QUOTES) ?>
+                    </button>
+                    <button @click="executeFromPicker('copy')"
+                            :disabled="pickerShare === ''"
+                            :class="pickerShare === '' ? 'opacity-40 cursor-not-allowed' : 'hover:bg-gray-50'"
+                            class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg transition">
+                        <?= htmlspecialchars($t->t('dialog.picker.copy_here'), ENT_QUOTES) ?>
+                    </button>
+                    <button @click="executeFromPicker('move')"
+                            :disabled="pickerShare === ''"
+                            :class="pickerShare === '' ? 'opacity-40 cursor-not-allowed' : 'hover:bg-blue-700'"
+                            class="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg transition">
+                        <?= htmlspecialchars($t->t('dialog.picker.move_here'), ENT_QUOTES) ?>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Progress (shown while executing) -->
+            <div x-show="pickerExecuting" class="flex flex-col items-center justify-center py-12 px-6 gap-4">
+                <svg class="animate-spin w-8 h-8 text-blue-600" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                    <path class="opacity-75" fill="currentColor"
+                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+                </svg>
+                <p class="text-sm text-gray-600 text-center font-medium"
+                   x-text="'<?= addcslashes($t->t('dialog.picker.executing'), "\\'") ?>'"></p>
+                <p class="text-xs text-gray-400 text-center truncate max-w-full" x-text="pickerExecuteStatus"></p>
+            </div>
+        </div>
+    </div>
 </div>
 
 <script>
+const i18n = {
+    errorLoadShares:    '<?= addcslashes($t->t('js.error.load_shares'),    "\\'") ?>',
+    errorLoadFiles:     '<?= addcslashes($t->t('js.error.load_files'),     "\\'") ?>',
+    errorChunkUpload:   '<?= addcslashes($t->t('js.error.chunk_upload'),   "\\'") ?>',
+    errorDownloadZip:   '<?= addcslashes($t->t('js.error.download_zip'),   "\\'") ?>',
+    errorRename:        '<?= addcslashes($t->t('js.error.rename'),         "\\'") ?>',
+    errorMove:          '<?= addcslashes($t->t('js.error.move'),           "\\'") ?>',
+    errorCopy:          '<?= addcslashes($t->t('js.error.copy'),           "\\'") ?>',
+    errorMkdir:         '<?= addcslashes($t->t('js.error.mkdir'),          "\\'") ?>',
+    errorDeletePartial:    '<?= addcslashes($t->t('js.error.delete_partial'),    "\\'") ?>',
+    errorOperationPartial: '<?= addcslashes($t->t('js.error.operation_partial'), "\\'") ?>',
+    uploadSuccess:        '<?= addcslashes($t->t('upload.success'),          "\\'") ?>',
+    uploadFailed:         '<?= addcslashes($t->t('upload.failed'),           "\\'") ?>',
+    uploadCancelled:      '<?= addcslashes($t->t('upload.cancelled'),        "\\'") ?>',
+    uploadPanelTitle:     '<?= addcslashes($t->t('upload.panel.title'),      "\\'") ?>',
+    uploadPanelClear:     '<?= addcslashes($t->t('upload.panel.clear'),      "\\'") ?>',
+    uploadStatusPending:  '<?= addcslashes($t->t('upload.status.pending'),   "\\'") ?>',
+    uploadStatusDone:     '<?= addcslashes($t->t('upload.status.done'),      "\\'") ?>',
+    uploadStatusFailed:   '<?= addcslashes($t->t('upload.status.failed'),    "\\'") ?>',
+    uploadStatusCancelled:'<?= addcslashes($t->t('upload.status.cancelled'), "\\'") ?>',
+};
+
 function fileBrowser() {
     return {
         shares: [],
         loadingShares: true,
+        sidebarOpen: false,
         currentShare: null,
         currentPath: '',
         files: [],
         loadingFiles: false,
         dragOver: false,
-        uploading: false,
+        uploadQueue: [],
+        uploadWorkerRunning: false,
+        uploadNextId: 0,
+        showUploadPanel: false,
+        uploadPanelCollapsed: false,
+        chunkSize: <?= (int) ($chunkSize ?? 10485760) ?>,
         flash: null,
         flashType: 'success',
         flashTimer: null,
+
+        sortColumn: 'name',
+        sortDir: 'asc',
 
         showRenameDialog: false,
         renameTarget: null,
         renameValue: '',
 
+        selected: [],
+
         showDeleteDialog: false,
-        deleteTarget: null,
+        deleteMessage: '<?= addcslashes($t->t('dialog.delete.message'), "\\'") ?>',
+        deleteMessageMulti: '<?= addcslashes($t->t('dialog.delete.message_multi'), "\\'") ?>',
 
         showMkdirDialog: false,
         mkdirValue: '',
+
+        showPickerDialog: false,
+        pickerShare: '',
+        pickerPath: '',
+        pickerShares: [],
+        pickerFolders: [],
+        pickerLoading: false,
+        pickerExecuting: false,
+        pickerExecuteStatus: '',
+
+        get sortedFiles() {
+            return [...this.files].sort((a, b) => {
+                if (a.type !== b.type) return a.type === 'dir' ? -1 : 1;
+                let cmp = 0;
+                if (this.sortColumn === 'name') {
+                    cmp = a.name.localeCompare(b.name, undefined, { sensitivity: 'base', numeric: true });
+                } else if (this.sortColumn === 'size') {
+                    cmp = (a.size ?? 0) - (b.size ?? 0);
+                } else if (this.sortColumn === 'modified') {
+                    cmp = (a.modified ?? 0) - (b.modified ?? 0);
+                }
+                return this.sortDir === 'asc' ? cmp : -cmp;
+            });
+        },
+
+        get allSelected() {
+            return this.sortedFiles.length > 0 && this.selected.length === this.sortedFiles.length;
+        },
+        get selectedFiles() {
+            return this.sortedFiles.filter(f => this.selected.includes(f.path));
+        },
+        get singleSelected() {
+            return this.selectedFiles.length === 1 ? this.selectedFiles[0] : null;
+        },
+        get selectionIsAllFiles() {
+            return this.selectedFiles.length > 0 && this.selectedFiles.every(f => f.type !== 'dir');
+        },
+
+        get pickerBreadcrumbs() {
+            if (!this.pickerShare) return [];
+            const crumbs = [{ name: this.pickerShare, path: '', isShare: true }];
+            if (this.pickerPath) {
+                const parts = this.pickerPath.split('/').filter(Boolean);
+                parts.forEach((name, i) => crumbs.push({
+                    name,
+                    path: parts.slice(0, i + 1).join('/'),
+                    isShare: false,
+                }));
+            }
+            return crumbs;
+        },
 
         get breadcrumbs() {
             if (!this.currentPath) return [];
@@ -373,6 +831,11 @@ function fileBrowser() {
 
         async init() {
             await this.loadShares();
+            window.addEventListener('beforeunload', (e) => {
+                if (this.uploadWorkerRunning) {
+                    e.preventDefault();
+                }
+            });
         },
 
         async loadShares() {
@@ -382,7 +845,7 @@ function fileBrowser() {
                 const data = await res.json();
                 this.shares = data.auto ?? [];
             } catch (e) {
-                this.showFlash('Failed to load shares', 'error');
+                this.showFlash(i18n.errorLoadShares, 'error');
             } finally {
                 this.loadingShares = false;
             }
@@ -402,53 +865,303 @@ function fileBrowser() {
         async loadFiles() {
             if (!this.currentShare) return;
             this.loadingFiles = true;
+            this.selected = [];
             try {
                 const url = '/api/files?share=' + encodeURIComponent(this.currentShare)
                           + '&path=' + encodeURIComponent(this.currentPath);
                 const res  = await fetch(url);
                 const data = await res.json();
                 this.files = data.files ?? [];
+                if (data.sort?.column) {
+                    this.sortColumn = data.sort.column;
+                    this.sortDir    = data.sort.dir ?? 'asc';
+                } else {
+                    this.sortColumn = 'name';
+                    this.sortDir    = 'asc';
+                }
             } catch (e) {
-                this.showFlash('Failed to load files', 'error');
+                this.showFlash(i18n.errorLoadFiles, 'error');
             } finally {
                 this.loadingFiles = false;
             }
         },
 
         async uploadFiles(event) {
-            await this.doUpload(event.target.files);
+            this.queueFiles(event.target.files);
             event.target.value = '';
         },
 
         async handleDrop(event) {
             this.dragOver = false;
-            await this.doUpload(event.dataTransfer.files);
+            this.queueFiles(event.dataTransfer.files);
         },
 
-        async doUpload(fileList) {
+        queueFiles(fileList) {
             if (!fileList || fileList.length === 0 || !this.currentShare) return;
-            this.uploading = true;
-            const fd = new FormData();
-            fd.append('share', this.currentShare);
-            fd.append('path', this.currentPath);
-            for (const f of fileList) {
-                fd.append('files[]', f);
+            for (const file of fileList) {
+                this.uploadQueue.push({
+                    id:            ++this.uploadNextId,
+                    name:          file.name,
+                    file,
+                    share:         this.currentShare,
+                    path:          this.currentPath,
+                    status:        'pending',
+                    progress:      0,
+                    uploadedBytes: 0,
+                    totalBytes:    file.size,
+                    speed:         0,
+                    finalizing:    false,
+                    abortController: null,
+                });
             }
-            try {
-                const res  = await fetch('/upload', { method: 'POST', body: fd });
+            this.showUploadPanel      = true;
+            this.uploadPanelCollapsed = false;
+            if (!this.uploadWorkerRunning) {
+                this.runUploadWorker();
+            }
+        },
+
+        async runUploadWorker() {
+            this.uploadWorkerRunning = true;
+            let anyDone = false;
+            while (true) {
+                const item = this.uploadQueue.find(u => u.status === 'pending');
+                if (!item) break;
+                item.status = 'uploading';
+                try {
+                    await this.uploadChunkedItem(item);
+                    if (item.status !== 'cancelled') { item.status = 'done'; anyDone = true; }
+                } catch (e) {
+                    if (item.status !== 'cancelled') item.status = 'failed';
+                }
+                // Refresh file list if still in the same folder
+                if (item.share === this.currentShare && item.path === this.currentPath) {
+                    await this.loadFiles();
+                }
+            }
+            this.uploadWorkerRunning = false;
+            if (anyDone) await this.loadShares();
+        },
+
+        cancelQueueItem(item) {
+            if (item.status === 'pending') {
+                item.status = 'cancelled';
+            } else if (item.status === 'uploading') {
+                item.status = 'cancelled';
+                item.abortController?.abort();
+            }
+        },
+
+        async uploadChunkedItem(item) {
+            const file  = item.file;
+            const total = Math.max(1, Math.ceil(file.size / this.chunkSize));
+            for (let i = 0; i < total; i++) {
+                if (item.status === 'cancelled') return;
+                const start      = i * this.chunkSize;
+                const end        = Math.min(start + this.chunkSize, file.size);
+                const chunkBytes = end - start;
+                const fd         = new FormData();
+                fd.append('share',       item.share);
+                fd.append('path',        item.path);
+                fd.append('filename',    file.name);
+                fd.append('chunk_index', i);
+                fd.append('chunk_total', total);
+                fd.append('chunk',       file.slice(start, end), file.name);
+
+                item.abortController = new AbortController();
+                // Mark last chunk as "finalizing" before sending – server will
+                // write the assembled file to SMB which can take a while.
+                if (i === total - 1) item.finalizing = true;
+
+                const t0  = performance.now();
+                const res = await fetch('/upload/chunk', {
+                    method: 'POST',
+                    body:   fd,
+                    signal: item.abortController.signal,
+                });
+                const elapsed = (performance.now() - t0) / 1000;
+                item.finalizing = false;
+                if (!res.ok) {
+                    const data = await res.json().catch(() => ({}));
+                    throw new Error(data.error ?? i18n.errorChunkUpload);
+                }
                 const data = await res.json();
-                if (data.uploaded?.length > 0) {
-                    this.showFlash(data.uploaded.length + ' file(s) uploaded.', 'success');
-                }
-                if (data.failed?.length > 0) {
-                    this.showFlash('Failed: ' + data.failed.join(', '), 'error');
-                }
-                await this.loadFiles();
-            } catch (e) {
-                this.showFlash('Upload failed', 'error');
-            } finally {
-                this.uploading = false;
+                if (data.error) throw new Error(data.error);
+
+                // Exponential moving average for smooth speed display
+                const rawSpeed = elapsed > 0 ? chunkBytes / elapsed : 0;
+                item.speed     = item.speed > 0
+                    ? 0.3 * rawSpeed + 0.7 * item.speed
+                    : rawSpeed;
+
+                item.uploadedBytes = end;
+                item.progress      = Math.round((i + 1) / total * 100);
             }
+        },
+
+        setSort(column) {
+            if (this.sortColumn === column) {
+                this.sortDir = this.sortDir === 'asc' ? 'desc' : 'asc';
+            } else {
+                this.sortColumn = column;
+                this.sortDir    = 'asc';
+            }
+            this.persistSortPref();
+        },
+
+        persistSortPref() {
+            if (!this.currentShare) return;
+            fetch('/api/sort-pref', {
+                method:  'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body:    JSON.stringify({
+                    share:  this.currentShare,
+                    path:   this.currentPath,
+                    column: this.sortColumn,
+                    dir:    this.sortDir,
+                }),
+            }).catch(() => {});
+        },
+
+        openFile(file) {
+            const url = '/browser/download?share=' + encodeURIComponent(this.currentShare)
+                      + '&path=' + encodeURIComponent(file.path);
+            window.open(url, '_blank');
+        },
+
+        toggleSelect(path) {
+            const i = this.selected.indexOf(path);
+            if (i === -1) this.selected.push(path);
+            else this.selected.splice(i, 1);
+        },
+
+        toggleSelectAll() {
+            if (this.allSelected) {
+                this.selected = [];
+            } else {
+                this.selected = this.sortedFiles.map(f => f.path);
+            }
+        },
+
+        clearSelection() {
+            this.selected = [];
+        },
+
+        downloadSelected() {
+            if (!this.singleSelected || this.singleSelected.type === 'dir') return;
+            const url = '/browser/download?share=' + encodeURIComponent(this.currentShare)
+                      + '&path=' + encodeURIComponent(this.singleSelected.path);
+            window.open(url, '_blank');
+        },
+
+        async downloadZip() {
+            const paths = this.selectedFiles.filter(f => f.type !== 'dir').map(f => f.path);
+            if (paths.length === 0) return;
+            try {
+                const res = await fetch('/browser/download-zip', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ share: this.currentShare, paths }),
+                });
+                if (!res.ok) { this.showFlash(i18n.errorDownloadZip, 'error'); return; }
+                const blob = await res.blob();
+                const url  = URL.createObjectURL(blob);
+                const a    = document.createElement('a');
+                a.href = url; a.download = 'download.zip';
+                document.body.appendChild(a); a.click();
+                document.body.removeChild(a); URL.revokeObjectURL(url);
+            } catch (e) {
+                this.showFlash(i18n.errorDownloadZip, 'error');
+            }
+        },
+
+        async openPicker() {
+            this.pickerShare         = '';
+            this.pickerPath          = '';
+            this.pickerExecuting     = false;
+            this.pickerExecuteStatus = '';
+            this.showPickerDialog    = true;
+            await this.loadPickerContent();
+        },
+
+        async loadPickerContent() {
+            this.pickerLoading = true;
+            try {
+                if (this.pickerShare === '') {
+                    const res  = await fetch('/api/shares');
+                    const data = await res.json();
+                    this.pickerShares  = [...(data.auto ?? []), ...(data.custom ?? [])];
+                    this.pickerFolders = [];
+                } else {
+                    const res  = await fetch('/api/files?share=' + encodeURIComponent(this.pickerShare)
+                                           + '&path='  + encodeURIComponent(this.pickerPath));
+                    const data = await res.json();
+                    this.pickerFolders = (data.files ?? []).filter(f => f.type === 'dir');
+                    this.pickerShares  = [];
+                }
+            } catch (e) {
+                this.pickerShares  = [];
+                this.pickerFolders = [];
+            } finally {
+                this.pickerLoading = false;
+            }
+        },
+
+        async pickerOpenShare(name) {
+            this.pickerShare = name;
+            this.pickerPath  = '';
+            await this.loadPickerContent();
+        },
+
+        async pickerNavigate(path) {
+            this.pickerPath = path;
+            await this.loadPickerContent();
+        },
+
+        async pickerGoToShares() {
+            this.pickerShare = '';
+            this.pickerPath  = '';
+            await this.loadPickerContent();
+        },
+
+        async executeFromPicker(operation) {
+            this.pickerExecuting = true;
+            const items    = [...this.selectedFiles];
+            const destDir  = this.pickerPath;
+            const endpoint = operation === 'move' ? '/file/move' : '/file/copy';
+            const failed   = [];
+
+            for (let i = 0; i < items.length; i++) {
+                const item = items[i];
+                this.pickerExecuteStatus = items.length > 1
+                    ? item.name + ' (' + (i + 1) + '/' + items.length + ')'
+                    : item.name;
+                try {
+                    const destShareParam = this.pickerShare !== this.currentShare
+                        ? this.pickerShare : undefined;
+                    const payload = operation === 'move'
+                        ? { share: this.currentShare, old_path: item.path, dest_dir: destDir, dest_share: destShareParam }
+                        : { share: this.currentShare, src_path: item.path, dest_dir: destDir, dest_share: destShareParam };
+                    const res  = await fetch(endpoint, {
+                        method:  'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body:    JSON.stringify(payload),
+                    });
+                    const data = await res.json();
+                    if (!data.success) failed.push(item.name);
+                } catch (e) {
+                    failed.push(item.name);
+                }
+            }
+
+            this.showPickerDialog    = false;
+            this.pickerExecuting     = false;
+            this.pickerExecuteStatus = '';
+
+            if (failed.length > 0) {
+                this.showFlash(i18n.errorOperationPartial.replace(':files', failed.join(', ')), 'error');
+            }
+            await this.loadFiles();
         },
 
         startRename(file) {
@@ -475,39 +1188,34 @@ function fileBrowser() {
                 if (data.success) {
                     await this.loadFiles();
                 } else {
-                    this.showFlash(data.error ?? 'Rename failed', 'error');
+                    this.showFlash(data.error ?? i18n.errorRename, 'error');
                 }
             } catch (e) {
-                this.showFlash('Rename failed', 'error');
+                this.showFlash(i18n.errorRename, 'error');
             }
-        },
-
-        startDelete(file) {
-            this.deleteTarget = file;
-            this.showDeleteDialog = true;
         },
 
         async confirmDelete() {
-            if (!this.deleteTarget) return;
+            const filesToDelete = [...this.selectedFiles];
             this.showDeleteDialog = false;
-            try {
-                const res = await fetch('/file/delete', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        share: this.currentShare,
-                        path:  this.deleteTarget.path,
-                    }),
-                });
-                const data = await res.json();
-                if (data.success) {
-                    await this.loadFiles();
-                } else {
-                    this.showFlash(data.error ?? 'Delete failed', 'error');
+            const failed = [];
+            for (const file of filesToDelete) {
+                try {
+                    const res = await fetch('/file/delete', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ share: this.currentShare, path: file.path }),
+                    });
+                    const data = await res.json();
+                    if (!data.success) failed.push(file.name);
+                } catch (e) {
+                    failed.push(file.name);
                 }
-            } catch (e) {
-                this.showFlash('Delete failed', 'error');
             }
+            if (failed.length > 0) {
+                this.showFlash(i18n.errorDeletePartial.replace(':files', failed.join(', ')), 'error');
+            }
+            await this.loadFiles();
         },
 
         async confirmMkdir() {
@@ -528,10 +1236,10 @@ function fileBrowser() {
                     this.mkdirValue = '';
                     await this.loadFiles();
                 } else {
-                    this.showFlash(data.error ?? 'Create folder failed', 'error');
+                    this.showFlash(data.error ?? i18n.errorMkdir, 'error');
                 }
             } catch (e) {
-                this.showFlash('Create folder failed', 'error');
+                this.showFlash(i18n.errorMkdir, 'error');
             }
         },
 
@@ -548,6 +1256,12 @@ function fileBrowser() {
             const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
             const i = Math.floor(Math.log(bytes) / Math.log(k));
             return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+        },
+
+        formatSpeed(bytesPerSec) {
+            const mbits = bytesPerSec * 8 / 1_000_000;
+            if (mbits < 1) return (bytesPerSec * 8 / 1000).toFixed(0) + ' Kbit/s';
+            return mbits.toFixed(1) + ' Mbit/s';
         },
 
         formatDate(ts) {

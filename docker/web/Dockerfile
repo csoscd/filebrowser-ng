@@ -43,10 +43,15 @@ LABEL org.opencontainers.image.title="filebrowser-ng" \
 # nosemgrep: dockerfile.security.last-user-is-root.last-user-is-root
 USER root
 
-# smbclient is required by icewind/smb
+# smbclient (Wrapped backend) + libsmbclient-php (Native backend, enables append/disk-info)
 RUN apt-get update && apt-get install -y --no-install-recommends \
         smbclient \
-    && rm -rf /var/lib/apt/lists/*
+        libsmbclient-dev \
+    && pecl install smbclient \
+    && docker-php-ext-enable smbclient \
+    && apt-get remove -y libsmbclient-dev \
+    && apt-get autoremove -y \
+    && rm -rf /var/lib/apt/lists/* /tmp/pear
 
 # The base image's PHP-FPM pool config has no user/group set.
 # Our entrypoint runs as root (for chown of bind-mounted volumes), so

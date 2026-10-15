@@ -19,7 +19,17 @@ interface StorageProviderInterface
 
     public function putFile(string $share, string $path, mixed $source): void;
 
+    /**
+     * Open a writable stream directly on the share (no local temp file).
+     * Pass $append=true for all chunks after the first.
+     *
+     * @return resource
+     */
+    public function openFileStream(string $share, string $path, bool $append = false): mixed;
+
     public function rename(string $share, string $oldPath, string $newPath): void;
+
+    public function copy(string $share, string $sourcePath, string $destPath, string $destShare = ''): void;
 
     public function delete(string $share, string $path): void;
 

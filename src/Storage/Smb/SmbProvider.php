@@ -16,6 +16,11 @@ class SmbProvider implements StorageProviderInterface
     /** @var array<string, IShare> */
     private array $shareCache = [];
 
+    private string $connectionHost     = '';
+    private string $connectionUsername = '';
+    private string $connectionPassword = '';
+    private string $connectionDomain   = '';
+
     public function __construct(
         private readonly LoggerInterface $logger,
         private readonly string $domain = '',
@@ -31,8 +36,12 @@ class SmbProvider implements StorageProviderInterface
             $factory = new ServerFactory();
             $server  = $factory->createServer($host, $auth);
             $server->listShares(); // verify credentials
-            $this->server     = $server;
-            $this->shareCache = [];
+            $this->server           = $server;
+            $this->shareCache       = [];
+            $this->connectionHost     = $host;
+            $this->connectionUsername = $username;
+            $this->connectionPassword = $password;
+            $this->connectionDomain   = $options['domain'] ?? $this->domain;
             return true;
         } catch (\Throwable $e) {
             $this->logger->warning('SMB connect failed', [
@@ -56,6 +65,53 @@ class SmbProvider implements StorageProviderInterface
             }
         }
         return $shares;
+    }
+
+    public function getDiskInfo(string $shareName): ?array
+    {
+        if ($this->connectionHost === '') {
+            return null;
+        }
+
+        // Native path: smbclient PHP extension (libsmbclient-php) – no exec() needed
+        if (function_exists('smbclient_statvfs')) {
+            return $this->getDiskInfoNative($shareName);
+        }
+
+        // Fallback: smbclient binary via exec() (dskattr removed in smbclient 4.22)
+        $this->logger->warning('getDiskInfo: smbclient PHP extension not loaded, disk info unavailable');
+        return null;
+    }
+
+    private function getDiskInfoNative(string $shareName): ?array
+    {
+        $state = smbclient_state_new();
+        if ($state === false) {
+            return null;
+        }
+        $domain = $this->connectionDomain !== '' ? $this->connectionDomain : null;
+        if (!smbclient_state_init($state, $domain, $this->connectionUsername, $this->connectionPassword)) {
+            smbclient_state_free($state);
+            return null;
+        }
+        $uri  = 'smb://' . $this->connectionHost . '/' . $shareName;
+        $info = @smbclient_statvfs($state, $uri);
+        smbclient_state_free($state);
+
+        if (!is_array($info) || empty($info['frsize'])) {
+            $this->logger->warning('getDiskInfo: statvfs returned no data', ['share' => $shareName]);
+            return null;
+        }
+        $this->logger->debug('getDiskInfo statvfs raw', ['share' => $shareName, 'statvfs' => $info]);
+        // libsmbclient maps SMB QueryFsSizeInfo as:
+        //   bsize  = BytesPerSector (e.g. 512)
+        //   frsize = SectorsPerAllocationUnit (e.g. 2, NOT bytes)
+        //   blocks/bavail = allocation units
+        // → actual bytes = blocks × frsize × bsize
+        return [
+            'total' => (int) $info['blocks'] * (int) $info['frsize'] * (int) $info['bsize'],
+            'free'  => (int) $info['bavail'] * (int) $info['frsize'] * (int) $info['bsize'],
+        ];
     }
 
     public function listDirectory(string $share, string $path = ''): array
@@ -135,12 +191,63 @@ class SmbProvider implements StorageProviderInterface
         }
     }
 
+    public function openFileStream(string $share, string $path, bool $append = false): mixed
+    {
+        $smbShare   = $this->getShare($share);
+        $remotePath = '/' . ltrim($path, '/');
+        return $append
+            ? $smbShare->append($remotePath)
+            : $smbShare->write($remotePath);
+    }
+
     public function rename(string $share, string $oldPath, string $newPath): void
     {
         $this->getShare($share)->rename(
             '/' . ltrim($oldPath, '/'),
             '/' . ltrim($newPath, '/')
         );
+    }
+
+    public function copy(string $share, string $sourcePath, string $destPath, string $destShare = ''): void
+    {
+        $srcSmbShare  = $this->getShare($share);
+        $destSmbShare = $destShare !== '' ? $this->getShare($destShare) : $srcSmbShare;
+        $this->copyRecursive($srcSmbShare, $sourcePath, $destSmbShare, $destPath);
+    }
+
+    private function copyRecursive(IShare $srcShare, string $src, IShare $destShare, string $dest): void
+    {
+        $srcSmb  = '/' . ltrim($src,  '/');
+        $destSmb = '/' . ltrim($dest, '/');
+
+        $info = $srcShare->stat($srcSmb);
+        if ($info->isDirectory()) {
+            $destShare->mkdir($destSmb);
+            foreach ($srcShare->dir($srcSmb) as $item) {
+                if (in_array($item->getName(), ['.', '..'], true)) {
+                    continue;
+                }
+                $this->copyRecursive(
+                    $srcShare,
+                    ltrim($src,  '/') . '/' . $item->getName(),
+                    $destShare,
+                    ltrim($dest, '/') . '/' . $item->getName(),
+                );
+            }
+        } else {
+            $tmpFile = tempnam(sys_get_temp_dir(), 'fbng_copy_');
+            if ($tmpFile === false) {
+                throw new \RuntimeException('Failed to create temp file');
+            }
+            try {
+                $srcShare->get($srcSmb, $tmpFile);
+                $destShare->put($tmpFile, $destSmb);
+            } finally {
+                if (file_exists($tmpFile)) {
+                    unlink($tmpFile);
+                }
+            }
+        }
     }
 
     public function delete(string $share, string $path): void
