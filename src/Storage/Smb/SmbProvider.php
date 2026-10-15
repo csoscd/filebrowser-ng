@@ -102,6 +102,7 @@ class SmbProvider implements StorageProviderInterface
             $this->logger->warning('getDiskInfo: statvfs returned no data', ['share' => $shareName]);
             return null;
         }
+        $this->logger->info('getDiskInfo statvfs raw', ['share' => $shareName, 'statvfs' => $info]);
         return [
             'total' => (int) $info['blocks'] * (int) $info['frsize'],
             'free'  => (int) $info['bavail'] * (int) $info['frsize'],
