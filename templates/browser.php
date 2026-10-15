@@ -779,7 +779,6 @@
             </div>
         </div>
     </div>
-</div>
 
 <!-- ── Add Server Modal ──────────────────────────────────────────────────── -->
 <div x-show="showAddServerModal" x-cloak
@@ -844,6 +843,7 @@
             </button>
         </div>
     </div>
+</div>
 </div>
 
 <script>
