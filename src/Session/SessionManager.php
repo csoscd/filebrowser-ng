@@ -83,4 +83,28 @@ class SessionManager
     {
         $_SESSION[$key] = $value;
     }
+
+    public function setExtraCredentials(string $host, string $username, string $password): void
+    {
+        if (!isset($_SESSION['extra_credentials'])) {
+            $_SESSION['extra_credentials'] = [];
+        }
+        $_SESSION['extra_credentials'][$host] = ['username' => $username, 'password' => $password];
+    }
+
+    /** @return array{username: string, password: string}|null */
+    public function getExtraCredentials(string $host): ?array
+    {
+        return $_SESSION['extra_credentials'][$host] ?? null;
+    }
+
+    public function hasExtraCredentials(string $host): bool
+    {
+        return isset($_SESSION['extra_credentials'][$host]);
+    }
+
+    public function clearExtraCredentials(string $host): void
+    {
+        unset($_SESSION['extra_credentials'][$host]);
+    }
 }

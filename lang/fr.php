@@ -91,8 +91,25 @@ return [
     'dialog.picker.shares'    => 'Partages',
     'dialog.picker.executing' => 'En cours…',
 
+    // Gestion des serveurs
+    'server.add'                  => 'Ajouter un serveur',
+    'server.add_title'            => 'Ajouter un serveur SMB',
+    'server.host'                 => 'Hôte / IP',
+    'server.display_name'         => 'Nom d\'affichage (optionnel)',
+    'server.domain'               => 'Domaine / Groupe de travail (optionnel)',
+    'server.remove'               => 'Supprimer le serveur',
+    'server.remove_confirm'       => 'Supprimer le serveur « :name » et tous ses partages enregistrés ?',
+    'server.credentials_required' => 'Identifiants requis',
+    'server.enter_credentials'    => 'Saisissez les identifiants pour :host',
+    'server.connecting'           => 'Connexion…',
+    'server.connect_failed'       => 'Échec de connexion. Vérifiez les identifiants.',
+    'server.already_added'        => 'Ce serveur a déjà été ajouté.',
+    'server.default_label'        => '(par défaut)',
+
     // JS error messages
     'js.error.load_shares'        => 'Impossible de charger les partages',
+    'js.error.add_server'         => 'Impossible d\'ajouter le serveur',
+    'js.error.credentials'        => 'Impossible de sauvegarder les identifiants',
     'js.error.load_files'         => 'Impossible de charger les fichiers',
     'js.error.chunk_upload'       => 'Échec de l\'envoi du fragment',
     'js.error.download_zip'       => 'Échec du téléchargement ZIP',

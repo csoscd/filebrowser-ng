@@ -64,43 +64,114 @@
                 </div>
             </template>
 
-            <nav class="flex-1 px-2 pb-4">
-                <template x-for="share in shares" :key="share.name">
-                    <button
-                        @click="openShare(share.name); sidebarOpen = false"
-                        :class="currentShare === share.name
-                            ? 'bg-blue-50 text-blue-700 font-medium'
-                            : 'text-gray-700 hover:bg-gray-100'"
-                        class="w-full text-left px-3 py-2 rounded-lg text-sm transition mb-0.5"
-                    >
-                        <div class="flex items-center gap-2">
-                            <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                      d="M3 7a2 2 0 012-2h3.586a1 1 0 01.707.293L11 7h10a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"/>
-                            </svg>
-                            <span x-text="share.name" class="truncate flex-1"></span>
+            <nav class="flex-1 px-2 pb-2 overflow-y-auto">
+                <template x-for="srv in servers" :key="srv.id">
+                    <div class="mb-2">
+                        <!-- Server header -->
+                        <div class="flex items-center gap-1 px-2 py-1 group">
+                            <button @click="srv.expanded = !srv.expanded"
+                                    class="flex-1 flex items-center gap-1.5 text-xs font-semibold text-gray-500 uppercase tracking-wider hover:text-gray-700 text-left truncate">
+                                <svg class="w-3 h-3 flex-shrink-0 transition-transform" :class="srv.expanded ? 'rotate-90' : ''"
+                                     fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                                </svg>
+                                <span x-text="srv.display_name" class="truncate"></span>
+                                <span x-show="srv.is_default" class="text-gray-400 font-normal normal-case tracking-normal">
+                                    <?= htmlspecialchars($t->t('server.default_label'), ENT_QUOTES) ?>
+                                </span>
+                            </button>
+                            <button x-show="!srv.is_default"
+                                    @click="confirmRemoveServer(srv)"
+                                    class="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-500 transition p-0.5 rounded flex-shrink-0"
+                                    title="<?= htmlspecialchars($t->t('server.remove'), ENT_QUOTES) ?>">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                                </svg>
+                            </button>
                         </div>
-                        <template x-if="share.disk">
-                            <div class="mt-1.5 pl-6">
-                                <div class="w-full bg-gray-200 rounded-full h-1"
-                                     :class="currentShare === share.name ? 'bg-blue-100' : 'bg-gray-200'">
-                                    <div class="h-1 rounded-full transition-all"
-                                         :class="((share.disk.total - share.disk.free) / share.disk.total) > 0.9
-                                             ? 'bg-red-500'
-                                             : ((share.disk.total - share.disk.free) / share.disk.total) > 0.75
-                                                 ? 'bg-yellow-400'
-                                                 : 'bg-blue-400'"
-                                         :style="'width:' + Math.round(((share.disk.total - share.disk.free) / share.disk.total) * 100) + '%'">
-                                    </div>
+
+                        <!-- Expanded: shares list or credential prompt -->
+                        <div x-show="srv.expanded">
+                            <!-- Credential prompt -->
+                            <template x-if="srv.needs_credentials">
+                                <div class="px-3 py-2">
+                                    <p class="text-xs text-gray-500 mb-2">
+                                        <?= htmlspecialchars($t->t('server.credentials_required'), ENT_QUOTES) ?>
+                                    </p>
+                                    <input type="text" :placeholder="'<?= addcslashes($t->t('login.username'), "\\'") ?>'"
+                                           x-model="srv._credUser"
+                                           class="w-full text-xs border border-gray-300 rounded px-2 py-1 mb-1 focus:outline-none focus:ring-1 focus:ring-blue-400"/>
+                                    <input type="password" :placeholder="'<?= addcslashes($t->t('login.password'), "\\'") ?>'"
+                                           x-model="srv._credPass"
+                                           @keydown.enter="submitServerCredentials(srv)"
+                                           class="w-full text-xs border border-gray-300 rounded px-2 py-1 mb-1 focus:outline-none focus:ring-1 focus:ring-blue-400"/>
+                                    <template x-if="srv._credError">
+                                        <p class="text-xs text-red-500 mb-1" x-text="srv._credError"></p>
+                                    </template>
+                                    <button @click="submitServerCredentials(srv)"
+                                            :disabled="srv._credLoading"
+                                            class="w-full text-xs bg-blue-600 text-white rounded px-2 py-1 hover:bg-blue-700 disabled:opacity-50">
+                                        <span x-show="!srv._credLoading"><?= htmlspecialchars($t->t('login.submit'), ENT_QUOTES) ?></span>
+                                        <span x-show="srv._credLoading"><?= htmlspecialchars($t->t('server.connecting'), ENT_QUOTES) ?></span>
+                                    </button>
                                 </div>
-                                <p class="text-xs mt-0.5 tabular-nums"
-                                   :class="currentShare === share.name ? 'text-blue-500' : 'text-gray-400'"
-                                   x-text="formatSize(share.disk.free) + ' <?= addcslashes($t->t('share.disk.free_of'), "\\'") ?> ' + formatSize(share.disk.total)">
-                                </p>
-                            </div>
-                        </template>
-                    </button>
+                            </template>
+
+                            <!-- Shares -->
+                            <template x-if="!srv.needs_credentials">
+                                <div>
+                                    <template x-for="share in (srv.shares ?? [])" :key="share.name">
+                                        <button
+                                            @click="openShare(share.name, srv.host); sidebarOpen = false"
+                                            :class="currentShare === share.name && currentServer === srv.host
+                                                ? 'bg-blue-50 text-blue-700 font-medium'
+                                                : 'text-gray-700 hover:bg-gray-100'"
+                                            class="w-full text-left px-3 py-2 rounded-lg text-sm transition mb-0.5"
+                                        >
+                                            <div class="flex items-center gap-2">
+                                                <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                          d="M3 7a2 2 0 012-2h3.586a1 1 0 01.707.293L11 7h10a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"/>
+                                                </svg>
+                                                <span x-text="share.name" class="truncate flex-1"></span>
+                                            </div>
+                                            <template x-if="share.disk">
+                                                <div class="mt-1.5 pl-6">
+                                                    <div class="w-full bg-gray-200 rounded-full h-1"
+                                                         :class="currentShare === share.name && currentServer === srv.host ? 'bg-blue-100' : 'bg-gray-200'">
+                                                        <div class="h-1 rounded-full transition-all"
+                                                             :class="((share.disk.total - share.disk.free) / share.disk.total) > 0.9
+                                                                 ? 'bg-red-500'
+                                                                 : ((share.disk.total - share.disk.free) / share.disk.total) > 0.75
+                                                                     ? 'bg-yellow-400'
+                                                                     : 'bg-blue-400'"
+                                                             :style="'width:' + Math.round(((share.disk.total - share.disk.free) / share.disk.total) * 100) + '%'">
+                                                        </div>
+                                                    </div>
+                                                    <p class="text-xs mt-0.5 tabular-nums"
+                                                       :class="currentShare === share.name && currentServer === srv.host ? 'text-blue-500' : 'text-gray-400'"
+                                                       x-text="formatSize(share.disk.free) + ' <?= addcslashes($t->t('share.disk.free_of'), "\\'") ?> ' + formatSize(share.disk.total)">
+                                                    </p>
+                                                </div>
+                                            </template>
+                                        </button>
+                                    </template>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
                 </template>
+
+                <!-- Add server button -->
+                <div class="px-2 pt-1 pb-2">
+                    <button @click="showAddServerModal = true"
+                            class="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                        </svg>
+                        <?= htmlspecialchars($t->t('server.add'), ENT_QUOTES) ?>
+                    </button>
+                </div>
             </nav>
         </aside>
 
@@ -710,6 +781,71 @@
     </div>
 </div>
 
+<!-- ── Add Server Modal ──────────────────────────────────────────────────── -->
+<div x-show="showAddServerModal" x-cloak
+     class="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+     @keydown.escape.window="showAddServerModal = false">
+    <div @click.stop
+         class="bg-white rounded-xl shadow-2xl w-full max-w-md mx-4 overflow-hidden">
+        <!-- Header -->
+        <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+            <h2 class="text-lg font-semibold text-gray-900">
+                <?= htmlspecialchars($t->t('server.add_title'), ENT_QUOTES) ?>
+            </h2>
+            <button @click="showAddServerModal = false"
+                    class="text-gray-400 hover:text-gray-600 transition">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+            </button>
+        </div>
+        <!-- Body -->
+        <div class="px-6 py-5 space-y-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">
+                    <?= htmlspecialchars($t->t('server.host'), ENT_QUOTES) ?> *
+                </label>
+                <input type="text" x-model="addServerHost"
+                       @keydown.enter="addServer()"
+                       class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"/>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">
+                    <?= htmlspecialchars($t->t('server.display_name'), ENT_QUOTES) ?>
+                </label>
+                <input type="text" x-model="addServerDisplayName"
+                       @keydown.enter="addServer()"
+                       class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"/>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">
+                    <?= htmlspecialchars($t->t('server.domain'), ENT_QUOTES) ?>
+                </label>
+                <input type="text" x-model="addServerDomain"
+                       @keydown.enter="addServer()"
+                       class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"/>
+            </div>
+            <template x-if="addServerError">
+                <p class="text-sm text-red-600" x-text="addServerError"></p>
+            </template>
+        </div>
+        <!-- Footer -->
+        <div class="px-6 py-4 border-t border-gray-100 flex gap-2 justify-end">
+            <button @click="showAddServerModal = false"
+                    class="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-800 transition">
+                <?= htmlspecialchars($t->t('dialog.rename.cancel'), ENT_QUOTES) ?>
+            </button>
+            <button @click="addServer()"
+                    :disabled="addServerLoading || !addServerHost.trim()"
+                    :class="(addServerLoading || !addServerHost.trim()) ? 'opacity-50 cursor-not-allowed' : 'hover:bg-blue-700'"
+                    class="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg transition">
+                <span x-show="!addServerLoading"><?= htmlspecialchars($t->t('server.add'), ENT_QUOTES) ?></span>
+                <span x-show="addServerLoading"><?= htmlspecialchars($t->t('server.connecting'), ENT_QUOTES) ?></span>
+            </button>
+        </div>
+    </div>
+</div>
+
 <script>
 const i18n = {
     errorLoadShares:    '<?= addcslashes($t->t('js.error.load_shares'),    "\\'") ?>',
@@ -722,6 +858,10 @@ const i18n = {
     errorMkdir:         '<?= addcslashes($t->t('js.error.mkdir'),          "\\'") ?>',
     errorDeletePartial:    '<?= addcslashes($t->t('js.error.delete_partial'),    "\\'") ?>',
     errorOperationPartial: '<?= addcslashes($t->t('js.error.operation_partial'), "\\'") ?>',
+    errorAddServer:     '<?= addcslashes($t->t('js.error.add_server'),     "\\'") ?>',
+    errorCredentials:   '<?= addcslashes($t->t('js.error.credentials'),    "\\'") ?>',
+    serverConnectFailed: '<?= addcslashes($t->t('server.connect_failed'),  "\\'") ?>',
+    serverAlreadyAdded: '<?= addcslashes($t->t('server.already_added'),    "\\'") ?>',
     uploadSuccess:        '<?= addcslashes($t->t('upload.success'),          "\\'") ?>',
     uploadFailed:         '<?= addcslashes($t->t('upload.failed'),           "\\'") ?>',
     uploadCancelled:      '<?= addcslashes($t->t('upload.cancelled'),        "\\'") ?>',
@@ -735,10 +875,18 @@ const i18n = {
 
 function fileBrowser() {
     return {
-        shares: [],
+        servers: [],
         loadingShares: true,
         sidebarOpen: false,
         currentShare: null,
+        currentServer: null,
+
+        showAddServerModal: false,
+        addServerHost: '',
+        addServerDisplayName: '',
+        addServerDomain: '',
+        addServerError: '',
+        addServerLoading: false,
         currentPath: '',
         files: [],
         loadingFiles: false,
@@ -841,9 +989,21 @@ function fileBrowser() {
         async loadShares() {
             this.loadingShares = true;
             try {
-                const res = await fetch('/api/shares');
+                const res  = await fetch('/api/shares');
                 const data = await res.json();
-                this.shares = data.auto ?? [];
+                const incoming = data.servers ?? [];
+                // Merge: preserve expanded/credential state for existing servers
+                this.servers = incoming.map(srv => {
+                    const existing = this.servers.find(s => s.id === srv.id);
+                    return {
+                        ...srv,
+                        expanded:    existing ? existing.expanded    : true,
+                        _credUser:   existing ? existing._credUser   : '',
+                        _credPass:   existing ? existing._credPass   : '',
+                        _credError:  existing ? existing._credError  : '',
+                        _credLoading: existing ? existing._credLoading : false,
+                    };
+                });
             } catch (e) {
                 this.showFlash(i18n.errorLoadShares, 'error');
             } finally {
@@ -851,9 +1011,10 @@ function fileBrowser() {
             }
         },
 
-        async openShare(name) {
-            this.currentShare = name;
-            this.currentPath  = '';
+        async openShare(name, serverHost) {
+            this.currentShare  = name;
+            this.currentServer = serverHost ?? null;
+            this.currentPath   = '';
             await this.loadFiles();
         },
 
@@ -868,7 +1029,8 @@ function fileBrowser() {
             this.selected = [];
             try {
                 const url = '/api/files?share=' + encodeURIComponent(this.currentShare)
-                          + '&path=' + encodeURIComponent(this.currentPath);
+                          + '&path='   + encodeURIComponent(this.currentPath)
+                          + (this.currentServer ? '&server=' + encodeURIComponent(this.currentServer) : '');
                 const res  = await fetch(url);
                 const data = await res.json();
                 this.files = data.files ?? [];
@@ -904,6 +1066,7 @@ function fileBrowser() {
                     name:          file.name,
                     file,
                     share:         this.currentShare,
+                    server:        this.currentServer ?? '',
                     path:          this.currentPath,
                     status:        'pending',
                     progress:      0,
@@ -962,6 +1125,7 @@ function fileBrowser() {
                 const chunkBytes = end - start;
                 const fd         = new FormData();
                 fd.append('share',       item.share);
+                fd.append('server',      item.server ?? '');
                 fd.append('path',        item.path);
                 fd.append('filename',    file.name);
                 fd.append('chunk_index', i);
@@ -1016,6 +1180,7 @@ function fileBrowser() {
                 headers: { 'Content-Type': 'application/json' },
                 body:    JSON.stringify({
                     share:  this.currentShare,
+                    server: this.currentServer ?? '',
                     path:   this.currentPath,
                     column: this.sortColumn,
                     dir:    this.sortDir,
@@ -1025,7 +1190,8 @@ function fileBrowser() {
 
         openFile(file) {
             const url = '/browser/download?share=' + encodeURIComponent(this.currentShare)
-                      + '&path=' + encodeURIComponent(file.path);
+                      + '&path=' + encodeURIComponent(file.path)
+                      + (this.currentServer ? '&server=' + encodeURIComponent(this.currentServer) : '');
             window.open(url, '_blank');
         },
 
@@ -1050,7 +1216,8 @@ function fileBrowser() {
         downloadSelected() {
             if (!this.singleSelected || this.singleSelected.type === 'dir') return;
             const url = '/browser/download?share=' + encodeURIComponent(this.currentShare)
-                      + '&path=' + encodeURIComponent(this.singleSelected.path);
+                      + '&path=' + encodeURIComponent(this.singleSelected.path)
+                      + (this.currentServer ? '&server=' + encodeURIComponent(this.currentServer) : '');
             window.open(url, '_blank');
         },
 
@@ -1061,7 +1228,7 @@ function fileBrowser() {
                 const res = await fetch('/browser/download-zip', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ share: this.currentShare, paths }),
+                    body: JSON.stringify({ share: this.currentShare, server: this.currentServer ?? '', paths }),
                 });
                 if (!res.ok) { this.showFlash(i18n.errorDownloadZip, 'error'); return; }
                 const blob = await res.blob();
@@ -1090,11 +1257,22 @@ function fileBrowser() {
                 if (this.pickerShare === '') {
                     const res  = await fetch('/api/shares');
                     const data = await res.json();
-                    this.pickerShares  = [...(data.auto ?? []), ...(data.custom ?? [])];
+                    // Build flat share list from all servers for the picker
+                    const allShares = [];
+                    for (const srv of (data.servers ?? [])) {
+                        for (const s of (srv.shares ?? [])) {
+                            allShares.push({ ...s, _server: srv.host });
+                        }
+                    }
+                    this.pickerShares  = allShares;
                     this.pickerFolders = [];
+                    this._pickerServerMap = {};
+                    for (const s of allShares) this._pickerServerMap[s.name] = s._server;
                 } else {
+                    const serverParam = this._pickerServerHost ?? '';
                     const res  = await fetch('/api/files?share=' + encodeURIComponent(this.pickerShare)
-                                           + '&path='  + encodeURIComponent(this.pickerPath));
+                                           + '&path='   + encodeURIComponent(this.pickerPath)
+                                           + (serverParam ? '&server=' + encodeURIComponent(serverParam) : ''));
                     const data = await res.json();
                     this.pickerFolders = (data.files ?? []).filter(f => f.type === 'dir');
                     this.pickerShares  = [];
@@ -1110,6 +1288,7 @@ function fileBrowser() {
         async pickerOpenShare(name) {
             this.pickerShare = name;
             this.pickerPath  = '';
+            this._pickerServerHost = (this._pickerServerMap ?? {})[name] ?? this.currentServer ?? '';
             await this.loadPickerContent();
         },
 
@@ -1140,8 +1319,8 @@ function fileBrowser() {
                     const destShareParam = this.pickerShare !== this.currentShare
                         ? this.pickerShare : undefined;
                     const payload = operation === 'move'
-                        ? { share: this.currentShare, old_path: item.path, dest_dir: destDir, dest_share: destShareParam }
-                        : { share: this.currentShare, src_path: item.path, dest_dir: destDir, dest_share: destShareParam };
+                        ? { share: this.currentShare, server: this.currentServer ?? '', old_path: item.path, dest_dir: destDir, dest_share: destShareParam }
+                        : { share: this.currentShare, server: this.currentServer ?? '', src_path: item.path, dest_dir: destDir, dest_share: destShareParam };
                     const res  = await fetch(endpoint, {
                         method:  'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -1180,6 +1359,7 @@ function fileBrowser() {
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         share:    this.currentShare,
+                        server:   this.currentServer ?? '',
                         old_path: this.renameTarget.path,
                         new_name: this.renameValue.trim(),
                     }),
@@ -1204,7 +1384,7 @@ function fileBrowser() {
                     const res = await fetch('/file/delete', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ share: this.currentShare, path: file.path }),
+                        body: JSON.stringify({ share: this.currentShare, server: this.currentServer ?? '', path: file.path }),
                     });
                     const data = await res.json();
                     if (!data.success) failed.push(file.name);
@@ -1226,9 +1406,10 @@ function fileBrowser() {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        share: this.currentShare,
-                        path:  this.currentPath,
-                        name:  this.mkdirValue.trim(),
+                        share:  this.currentShare,
+                        server: this.currentServer ?? '',
+                        path:   this.currentPath,
+                        name:   this.mkdirValue.trim(),
                     }),
                 });
                 const data = await res.json();
@@ -1240,6 +1421,95 @@ function fileBrowser() {
                 }
             } catch (e) {
                 this.showFlash(i18n.errorMkdir, 'error');
+            }
+        },
+
+        // ── Server management ──────────────────────────────────────────────
+        async addServer() {
+            const host = this.addServerHost.trim();
+            if (!host) return;
+            this.addServerError   = '';
+            this.addServerLoading = true;
+            try {
+                const res  = await fetch('/api/servers', {
+                    method:  'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body:    JSON.stringify({
+                        host:         host,
+                        display_name: this.addServerDisplayName.trim() || host,
+                        domain:       this.addServerDomain.trim(),
+                    }),
+                });
+                const data = await res.json();
+                if (data.success) {
+                    this.showAddServerModal  = false;
+                    this.addServerHost        = '';
+                    this.addServerDisplayName = '';
+                    this.addServerDomain      = '';
+                    await this.loadShares();
+                } else if (data.error === 'already_exists') {
+                    this.addServerError = i18n.serverAlreadyAdded;
+                } else if (data.error === 'connection_failed') {
+                    this.addServerError = i18n.serverConnectFailed;
+                } else {
+                    this.addServerError = data.error ?? i18n.errorAddServer;
+                }
+            } catch (e) {
+                this.addServerError = i18n.errorAddServer;
+            } finally {
+                this.addServerLoading = false;
+            }
+        },
+
+        confirmRemoveServer(srv) {
+            const name = srv.display_name ?? srv.host;
+            const msg  = '<?= addcslashes($t->t('server.remove_confirm'), "\\'") ?>'.replace(':name', name);
+            if (!confirm(msg)) return;
+            this.removeServer(srv.id);
+        },
+
+        async removeServer(serverId) {
+            try {
+                const res = await fetch('/api/servers/' + encodeURIComponent(serverId), {
+                    method: 'DELETE',
+                });
+                const data = await res.json();
+                if (data.success) {
+                    if (this.servers.find(s => s.id === serverId && s.host === this.currentServer)) {
+                        this.currentShare  = null;
+                        this.currentServer = null;
+                        this.files         = [];
+                    }
+                    await this.loadShares();
+                }
+            } catch (e) {
+                this.showFlash(i18n.errorAddServer, 'error');
+            }
+        },
+
+        async submitServerCredentials(srv) {
+            srv._credError   = '';
+            srv._credLoading = true;
+            try {
+                const res  = await fetch('/api/servers/' + encodeURIComponent(srv.id) + '/credentials', {
+                    method:  'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body:    JSON.stringify({ username: srv._credUser, password: srv._credPass }),
+                });
+                const data = await res.json();
+                if (data.success) {
+                    srv._credUser = '';
+                    srv._credPass = '';
+                    await this.loadShares();
+                } else if (data.error === 'connection_failed') {
+                    srv._credError = i18n.serverConnectFailed;
+                } else {
+                    srv._credError = data.error ?? i18n.errorCredentials;
+                }
+            } catch (e) {
+                srv._credError = i18n.errorCredentials;
+            } finally {
+                srv._credLoading = false;
             }
         },
 

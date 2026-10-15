@@ -91,8 +91,25 @@ return [
     'dialog.picker.shares'    => 'Freigaben',
     'dialog.picker.executing' => 'Wird ausgeführt…',
 
+    // Server-Verwaltung
+    'server.add'                  => 'Server hinzufügen',
+    'server.add_title'            => 'SMB-Server hinzufügen',
+    'server.host'                 => 'Host / IP',
+    'server.display_name'         => 'Anzeigename (optional)',
+    'server.domain'               => 'Domain / Workgroup (optional)',
+    'server.remove'               => 'Server entfernen',
+    'server.remove_confirm'       => 'Server „:name" und alle gespeicherten Freigaben entfernen?',
+    'server.credentials_required' => 'Anmeldedaten erforderlich',
+    'server.enter_credentials'    => 'Anmeldedaten für :host eingeben',
+    'server.connecting'           => 'Verbinde…',
+    'server.connect_failed'       => 'Verbindung fehlgeschlagen. Anmeldedaten prüfen.',
+    'server.already_added'        => 'Dieser Server wurde bereits hinzugefügt.',
+    'server.default_label'        => '(Standard)',
+
     // JS error messages
     'js.error.load_shares'        => 'Freigaben konnten nicht geladen werden',
+    'js.error.add_server'         => 'Server konnte nicht hinzugefügt werden',
+    'js.error.credentials'        => 'Anmeldedaten konnten nicht gespeichert werden',
     'js.error.load_files'         => 'Dateien konnten nicht geladen werden',
     'js.error.chunk_upload'       => 'Upload-Fragment fehlgeschlagen',
     'js.error.download_zip'       => 'ZIP-Download fehlgeschlagen',

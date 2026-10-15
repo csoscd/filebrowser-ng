@@ -39,33 +39,109 @@ class BrowserController
     public function shares(Request $request): void
     {
         $this->requireAuth();
-        $this->connectSmb();
 
-        $auto = $this->provider->listShares();
+        $username    = $this->session->getUsername() ?? '';
+        $defaultHost = (string) $this->config->get('smb.server', '');
 
-        if (method_exists($this->provider, 'getDiskInfo')) {
-            foreach ($auto as &$share) {
-                $share['disk'] = $this->provider->getDiskInfo($share['name']);
+        $servers = [];
+
+        // ── Default server ────────────────────────────────────────────────────
+        $defaultEntry = [
+            'id'           => 'default',
+            'host'         => $defaultHost,
+            'display_name' => $defaultHost,
+            'domain'       => (string) $this->config->get('smb.domain', ''),
+            'shares'       => [],
+            'custom'       => [],
+            'is_default'   => true,
+        ];
+
+        $connected = $this->provider->connect(
+            $defaultHost,
+            $this->session->getUsername() ?? '',
+            $this->session->getPassword() ?? '',
+            ['domain' => $defaultEntry['domain']]
+        );
+
+        if ($connected) {
+            $autoShares = $this->provider->listShares();
+            if (method_exists($this->provider, 'getDiskInfo')) {
+                foreach ($autoShares as &$share) {
+                    $share['disk'] = $this->provider->getDiskInfo($share['name']);
+                }
+                unset($share);
             }
-            unset($share);
+            $defaultEntry['shares'] = $autoShares;
+            // Custom shares with no server_id belong to the default server
+            $defaultEntry['custom'] = array_values(array_filter(
+                $this->serverRepo->findSharesByUser($username),
+                static fn($s) => $s['server_id'] === null || $s['server_id'] === ''
+            ));
+        } else {
+            $defaultEntry['error'] = 'connection_failed';
         }
 
-        $custom = $this->serverRepo->findByUser($this->session->getUsername() ?? '');
+        $servers[] = $defaultEntry;
 
-        Response::json(['auto' => $auto, 'custom' => $custom]);
+        // ── User-added servers ────────────────────────────────────────────────
+        foreach ($this->serverRepo->findServersByUser($username) as $userServer) {
+            $host   = (string) $userServer['host'];
+            $domain = (string) $userServer['domain'];
+            $entry  = [
+                'id'           => (int) $userServer['id'],
+                'host'         => $host,
+                'display_name' => $userServer['display_name'] !== '' ? $userServer['display_name'] : $host,
+                'domain'       => $domain,
+                'shares'       => [],
+                'custom'       => [],
+                'is_default'   => false,
+            ];
+
+            // Try session creds first, then stored extra creds
+            $ok = $this->provider->connect(
+                $host,
+                $this->session->getUsername() ?? '',
+                $this->session->getPassword() ?? '',
+                ['domain' => $domain]
+            );
+
+            if (!$ok && $this->session->hasExtraCredentials($host)) {
+                $extra = $this->session->getExtraCredentials($host);
+                $ok    = $this->provider->connect($host, $extra['username'], $extra['password'], ['domain' => $domain]);
+            }
+
+            if ($ok) {
+                $autoShares = $this->provider->listShares();
+                if (method_exists($this->provider, 'getDiskInfo')) {
+                    foreach ($autoShares as &$share) {
+                        $share['disk'] = $this->provider->getDiskInfo($share['name']);
+                    }
+                    unset($share);
+                }
+                $entry['shares'] = $autoShares;
+                $entry['custom'] = $this->serverRepo->findSharesByServer((int) $userServer['id'], $username);
+            } else {
+                $entry['needs_credentials'] = true;
+            }
+
+            $servers[] = $entry;
+        }
+
+        Response::json(['servers' => $servers]);
     }
 
     public function listFiles(Request $request): void
     {
         $this->requireAuth();
-        $share = (string) $request->getQuery('share', '');
-        $path  = (string) $request->getQuery('path', '');
+        $share  = (string) $request->getQuery('share', '');
+        $path   = (string) $request->getQuery('path', '');
+        $server = (string) $request->getQuery('server', '');
 
         if ($share === '') {
             Response::json(['error' => 'share required'], 400);
         }
 
-        $this->connectSmb();
+        $this->connectSmbForHost($server);
 
         try {
             $files = $this->provider->listDirectory($share, $path);
@@ -97,13 +173,14 @@ class BrowserController
         $this->requireAuth();
         $share    = (string) $request->getQuery('share', '');
         $path     = (string) $request->getQuery('path', '');
+        $server   = (string) $request->getQuery('server', '');
         $filename = basename($path);
 
         if ($share === '' || $path === '') {
             Response::error('share and path required', 400);
         }
 
-        $this->connectSmb();
+        $this->connectSmbForHost($server);
 
         try {
             $stream = $this->provider->getFile($share, $path);
@@ -117,15 +194,16 @@ class BrowserController
     public function downloadZip(Request $request): void
     {
         $this->requireAuth();
-        $data  = $request->jsonBody();
-        $share = (string) ($data['share'] ?? '');
-        $paths = array_values(array_filter(array_map('strval', (array) ($data['paths'] ?? []))));
+        $data   = $request->jsonBody();
+        $share  = (string) ($data['share']  ?? '');
+        $paths  = array_values(array_filter(array_map('strval', (array) ($data['paths'] ?? []))));
+        $server = (string) ($data['server'] ?? '');
 
         if ($share === '' || empty($paths)) {
             Response::error('share and paths required', 400);
         }
 
-        $this->connectSmb();
+        $this->connectSmbForHost($server);
 
         $tmpZip = tempnam(sys_get_temp_dir(), 'fbng_zip_');
         $zip    = new \ZipArchive();
@@ -192,17 +270,42 @@ class BrowserController
         }
     }
 
-    private function connectSmb(): void
+    public function connectSmbForHost(string $host): void
     {
+        $defaultHost = (string) $this->config->get('smb.server', '');
+
+        if ($host === '' || $host === $defaultHost) {
+            $connected = $this->provider->connect(
+                $defaultHost,
+                $this->session->getUsername() ?? '',
+                $this->session->getPassword() ?? '',
+                ['domain' => (string) $this->config->get('smb.domain', '')]
+            );
+            if (!$connected) {
+                $this->session->destroy();
+                Response::redirect('/');
+            }
+            return;
+        }
+
+        // User-added server: look up domain, try session creds then extra creds
+        $userServer = $this->serverRepo->findServerByHost($this->session->getUsername() ?? '', $host);
+        $domain     = $userServer !== null ? (string) $userServer['domain'] : '';
+
         $connected = $this->provider->connect(
-            (string) $this->config->get('smb.server', ''),
+            $host,
             $this->session->getUsername() ?? '',
             $this->session->getPassword() ?? '',
-            ['domain' => (string) $this->config->get('smb.domain', '')]
+            ['domain' => $domain]
         );
+
+        if (!$connected && $this->session->hasExtraCredentials($host)) {
+            $extra     = $this->session->getExtraCredentials($host);
+            $connected = $this->provider->connect($host, $extra['username'], $extra['password'], ['domain' => $domain]);
+        }
+
         if (!$connected) {
-            $this->session->destroy();
-            Response::redirect('/');
+            Response::json(['error' => 'credentials_required', 'host' => $host], 401);
         }
     }
 }

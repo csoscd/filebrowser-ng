@@ -23,6 +23,7 @@ if ($autoload === '/var/www/libs/vendor/autoload.php') {
 use FilebrowserNg\Controller\AuthController;
 use FilebrowserNg\Controller\BrowserController;
 use FilebrowserNg\Controller\FileActionController;
+use FilebrowserNg\Controller\ServerController;
 use FilebrowserNg\Controller\UploadController;
 use FilebrowserNg\Http\Request;
 use FilebrowserNg\Http\Response;
@@ -102,6 +103,7 @@ $auth    = new AuthController($session, $provider, $view, $config, $logger);
 $browser = new BrowserController($session, $provider, $serverRepo, $prefRepo, $view, $config, $logger);
 $upload  = new UploadController($session, $provider, $config, $logger);
 $actions = new FileActionController($session, $provider, $config, $logger);
+$servers = new ServerController($session, $serverRepo, $provider, $config, $logger);
 
 // ── Routes ─────────────────────────────────────────────────────────────────
 $router = new Router();
@@ -122,6 +124,11 @@ $router->post('/file/copy',       fn($req) => $actions->copy($req));
 $router->post('/file/delete',     fn($req) => $actions->delete($req));
 $router->post('/file/mkdir',      fn($req) => $actions->mkdir($req));
 $router->post('/api/sort-pref',   fn($req) => $browser->saveSortPref($req));
+
+$router->get('/api/servers',                      fn($req)       => $servers->list($req));
+$router->post('/api/servers',                     fn($req)       => $servers->add($req));
+$router->delete('/api/servers/{id}',              fn($req, $p)   => $servers->remove($req, $p));
+$router->post('/api/servers/{id}/credentials',    fn($req, $p)   => $servers->storeCredentials($req, $p));
 
 $router->get('/lang/{code}', function (Request $req, array $params) use ($session, $prefRepo): void {
     $allowed = ['en', 'de', 'fr'];
