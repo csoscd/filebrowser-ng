@@ -89,13 +89,23 @@ class SmbProvider implements StorageProviderInterface
 
             $smbclient = is_executable('/usr/bin/smbclient') ? '/usr/bin/smbclient' : 'smbclient';
             $unc       = '//' . $this->connectionHost . '/' . $shareName;
+            // Redirect stderr to stdout so we capture error messages for logging
             $cmd       = $smbclient . ' ' . escapeshellarg($unc)
                        . ' -A ' . escapeshellarg($tmpCred)
-                       . ' -c dskattr 2>/dev/null';
+                       . ' -c dskattr 2>&1';
 
             $output = [];
-            exec($cmd, $output);
-            $this->logger->debug('getDiskInfo raw output', ['share' => $shareName, 'lines' => $output]);
+            $retCode = 0;
+            exec($cmd, $output, $retCode);
+            if ($retCode !== 0) {
+                $this->logger->warning('getDiskInfo smbclient failed', [
+                    'share'  => $shareName,
+                    'code'   => $retCode,
+                    'output' => implode(' | ', $output),
+                ]);
+            } else {
+                $this->logger->debug('getDiskInfo raw output', ['share' => $shareName, 'lines' => $output]);
+            }
         } finally {
             @unlink($tmpCred);
         }
