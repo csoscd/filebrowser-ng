@@ -117,8 +117,8 @@ class FileActionController
         $this->requireAuth();
         $data      = $request->jsonBody();
         $share     = (string) ($data['share']      ?? '');
-        $oldPath   = (string) ($data['old_path']   ?? '');
-        $destDir   = (string) ($data['dest_dir']   ?? '');
+        $oldPath   = urldecode((string) ($data['old_path']   ?? ''));
+        $destDir   = urldecode((string) ($data['dest_dir']   ?? ''));
         $destShare = (string) ($data['dest_share'] ?? $share);
         $server    = (string) ($data['server']     ?? '');
 
@@ -147,7 +147,14 @@ class FileActionController
             ]);
             Response::json(['success' => true, 'new_path' => $newPath]);
         } catch (\Throwable $e) {
-            $this->logger->error('Move failed', ['error' => $e->getMessage()]);
+            $this->logger->error('Move failed', [
+                'share'      => $share,
+                'old_path'   => $oldPath,
+                'new_path'   => $newPath,
+                'dest_share' => $destShare,
+                'server'     => $server,
+                'error'      => $e->getMessage(),
+            ]);
             Response::json(['error' => 'Move failed'], 500);
         }
     }
@@ -157,8 +164,8 @@ class FileActionController
         $this->requireAuth();
         $data      = $request->jsonBody();
         $share     = (string) ($data['share']      ?? '');
-        $srcPath   = (string) ($data['src_path']   ?? '');
-        $destDir   = (string) ($data['dest_dir']   ?? '');
+        $srcPath   = urldecode((string) ($data['src_path']   ?? ''));
+        $destDir   = urldecode((string) ($data['dest_dir']   ?? ''));
         $destShare = (string) ($data['dest_share'] ?? $share);
         $server    = (string) ($data['server']     ?? '');
 
@@ -181,7 +188,14 @@ class FileActionController
             ]);
             Response::json(['success' => true, 'new_path' => $dstPath]);
         } catch (\Throwable $e) {
-            $this->logger->error('Copy failed', ['error' => $e->getMessage()]);
+            $this->logger->error('Copy failed', [
+                'share'      => $share,
+                'src_path'   => $srcPath,
+                'dst_path'   => $dstPath,
+                'dest_share' => $destShare,
+                'server'     => $server,
+                'error'      => $e->getMessage(),
+            ]);
             Response::json(['error' => 'Copy failed'], 500);
         }
     }
