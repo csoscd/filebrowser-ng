@@ -125,6 +125,12 @@ class SmbProvider implements StorageProviderInterface
                 ];
             }
         }
+        if ($output !== []) {
+            $this->logger->warning('getDiskInfo: no match in output', [
+                'share'  => $shareName,
+                'output' => implode(' | ', $output),
+            ]);
+        }
         return null;
     }
 
