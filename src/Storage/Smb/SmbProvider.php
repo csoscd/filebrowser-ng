@@ -102,10 +102,14 @@ class SmbProvider implements StorageProviderInterface
             $this->logger->warning('getDiskInfo: statvfs returned no data', ['share' => $shareName]);
             return null;
         }
-        $this->logger->info('getDiskInfo statvfs raw', ['share' => $shareName, 'statvfs' => $info]);
+        // libsmbclient maps SMB QueryFsSizeInfo as:
+        //   bsize  = BytesPerSector (e.g. 512)
+        //   frsize = SectorsPerAllocationUnit (e.g. 2, NOT bytes)
+        //   blocks/bavail = allocation units
+        // → actual bytes = blocks × frsize × bsize
         return [
-            'total' => (int) $info['blocks'] * (int) $info['frsize'],
-            'free'  => (int) $info['bavail'] * (int) $info['frsize'],
+            'total' => (int) $info['blocks'] * (int) $info['frsize'] * (int) $info['bsize'],
+            'free'  => (int) $info['bavail'] * (int) $info['frsize'] * (int) $info['bsize'],
         ];
     }
 
