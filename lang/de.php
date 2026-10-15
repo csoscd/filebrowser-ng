@@ -45,6 +45,12 @@ return [
     'upload.failed'               => 'Fehlgeschlagen: :files',
     'upload.cancel'               => 'Abbrechen',
     'upload.cancelled'            => 'Upload abgebrochen.',
+    'upload.panel.title'          => 'Uploads',
+    'upload.panel.clear'          => 'Erledigte löschen',
+    'upload.status.pending'       => 'Wartend…',
+    'upload.status.done'          => 'Fertig',
+    'upload.status.failed'        => 'Fehlgeschlagen',
+    'upload.status.cancelled'     => 'Abgebrochen',
 
     // Dialogs
     'dialog.movecopy.title'        => 'Verschieben / Kopieren',

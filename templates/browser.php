@@ -153,41 +153,22 @@
                                 </svg>
                                 <span class="hidden sm:inline"><?= htmlspecialchars($t->t('browser.new_folder'), ENT_QUOTES) ?></span>
                             </button>
-                            <label class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm bg-blue-600 text-white
+                            <label class="relative inline-flex items-center gap-1.5 px-3 py-1.5 text-sm bg-blue-600 text-white
                                           rounded-lg hover:bg-blue-700 transition font-medium cursor-pointer">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                           d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
                                 </svg>
                                 <span class="hidden sm:inline"><?= htmlspecialchars($t->t('browser.upload'), ENT_QUOTES) ?></span>
+                                <template x-if="uploadQueue.filter(u => u.status === 'uploading' || u.status === 'pending').length > 0">
+                                    <span class="absolute -top-1.5 -right-1.5 min-w-[1.1rem] h-[1.1rem] flex items-center justify-center
+                                                 rounded-full bg-yellow-400 text-gray-900 text-[10px] font-bold leading-none px-1"
+                                          x-text="uploadQueue.filter(u => u.status === 'uploading' || u.status === 'pending').length"></span>
+                                </template>
                                 <input type="file" multiple class="hidden" @change="uploadFiles($event)">
                             </label>
                         </div>
                     </div>
-
-                    <!-- Upload progress -->
-                    <template x-if="uploading">
-                        <div class="bg-blue-50 border-b border-blue-200 px-4 py-2 flex-shrink-0">
-                            <div class="flex items-center gap-2 text-sm text-blue-700 mb-1.5">
-                                <span class="truncate flex-1 min-w-0">
-                                    <span x-show="uploadFileCount > 1"
-                                          x-text="'(' + uploadFileIndex + '/' + uploadFileCount + ') '"></span>
-                                    <span x-text="uploadCurrent"></span>
-                                </span>
-                                <span class="flex-shrink-0 font-medium tabular-nums text-xs text-blue-500"
-                                      x-text="formatSize(uploadedBytes) + ' / ' + formatSize(uploadTotalBytes)"></span>
-                                <span class="flex-shrink-0 font-medium tabular-nums" x-text="uploadProgress + '%'"></span>
-                                <button @click="cancelUpload()"
-                                        class="flex-shrink-0 px-2 py-0.5 text-xs font-medium text-red-600 bg-red-50 border border-red-200 rounded hover:bg-red-100 transition">
-                                    <?= htmlspecialchars($t->t('upload.cancel'), ENT_QUOTES) ?>
-                                </button>
-                            </div>
-                            <div class="w-full bg-blue-200 rounded-full h-1.5">
-                                <div class="bg-blue-600 h-1.5 rounded-full transition-all duration-150"
-                                     :style="'width: ' + uploadProgress + '%'"></div>
-                            </div>
-                        </div>
-                    </template>
 
                     <!-- Flash message -->
                     <template x-if="flash">
@@ -367,6 +348,133 @@
                 </div>
             </template>
         </main>
+    </div>
+
+    <!-- ── Upload Manager Panel ───────────────────────────────────────────── -->
+    <div x-show="showUploadPanel" x-cloak
+         x-transition:enter="transition ease-out duration-200"
+         x-transition:enter-start="opacity-0 translate-y-2"
+         x-transition:enter-end="opacity-100 translate-y-0"
+         x-transition:leave="transition ease-in duration-150"
+         x-transition:leave-start="opacity-100 translate-y-0"
+         x-transition:leave-end="opacity-0 translate-y-2"
+         class="fixed bottom-4 right-4 z-40 w-80 bg-white rounded-2xl shadow-2xl border border-gray-200 overflow-hidden">
+
+        <!-- Panel header -->
+        <div class="flex items-center justify-between px-4 py-2.5 bg-gray-50 border-b border-gray-200">
+            <div class="flex items-center gap-2">
+                <span class="text-sm font-semibold text-gray-800" x-text="i18n.uploadPanelTitle"></span>
+                <template x-if="uploadQueue.filter(u => u.status === 'uploading' || u.status === 'pending').length > 0">
+                    <span class="min-w-[1.2rem] h-5 flex items-center justify-center rounded-full
+                                 bg-blue-100 text-blue-700 text-xs font-bold px-1.5"
+                          x-text="uploadQueue.filter(u => u.status === 'uploading' || u.status === 'pending').length"></span>
+                </template>
+            </div>
+            <div class="flex items-center gap-1">
+                <!-- Clear done -->
+                <button @click="uploadQueue = uploadQueue.filter(u => u.status === 'pending' || u.status === 'uploading')"
+                        x-show="uploadQueue.some(u => u.status === 'done' || u.status === 'failed' || u.status === 'cancelled')"
+                        class="text-xs text-gray-400 hover:text-gray-600 px-1.5 py-0.5 rounded hover:bg-gray-100 transition"
+                        x-text="i18n.uploadPanelClear"></button>
+                <!-- Collapse -->
+                <button @click="uploadPanelCollapsed = !uploadPanelCollapsed"
+                        class="p-1 rounded text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition">
+                    <svg class="w-4 h-4 transition-transform" :class="uploadPanelCollapsed ? 'rotate-180' : ''"
+                         fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                    </svg>
+                </button>
+                <!-- Close -->
+                <button @click="showUploadPanel = false"
+                        class="p-1 rounded text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+
+        <!-- File list -->
+        <div x-show="!uploadPanelCollapsed" class="max-h-72 overflow-y-auto divide-y divide-gray-100">
+            <template x-for="item in uploadQueue" :key="item.id">
+                <div class="px-4 py-2.5">
+                    <div class="flex items-start gap-2">
+                        <!-- Status icon -->
+                        <div class="flex-shrink-0 mt-0.5">
+                            <template x-if="item.status === 'done'">
+                                <svg class="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                                </svg>
+                            </template>
+                            <template x-if="item.status === 'failed'">
+                                <svg class="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                                </svg>
+                            </template>
+                            <template x-if="item.status === 'cancelled'">
+                                <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/>
+                                </svg>
+                            </template>
+                            <template x-if="item.status === 'uploading'">
+                                <svg class="w-4 h-4 text-blue-500 animate-spin" fill="none" viewBox="0 0 24 24">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                                </svg>
+                            </template>
+                            <template x-if="item.status === 'pending'">
+                                <svg class="w-4 h-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                </svg>
+                            </template>
+                        </div>
+
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center gap-1">
+                                <span class="truncate text-sm font-medium text-gray-700 flex-1" x-text="item.name"></span>
+                                <!-- Cancel button -->
+                                <button x-show="item.status === 'pending' || item.status === 'uploading'"
+                                        @click="cancelQueueItem(item)"
+                                        class="flex-shrink-0 p-0.5 rounded text-gray-400 hover:text-red-500 hover:bg-red-50 transition">
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                                    </svg>
+                                </button>
+                            </div>
+
+                            <!-- Progress bar (uploading only) -->
+                            <template x-if="item.status === 'uploading'">
+                                <div class="mt-1">
+                                    <div class="flex justify-between text-xs text-gray-400 mb-0.5 tabular-nums">
+                                        <span x-text="formatSize(item.uploadedBytes) + ' / ' + formatSize(item.totalBytes)"></span>
+                                        <span x-text="item.progress + '%'"></span>
+                                    </div>
+                                    <div class="w-full bg-gray-200 rounded-full h-1">
+                                        <div class="bg-blue-500 h-1 rounded-full transition-all duration-150"
+                                             :style="'width:' + item.progress + '%'"></div>
+                                    </div>
+                                </div>
+                            </template>
+
+                            <!-- Status text (not uploading) -->
+                            <template x-if="item.status !== 'uploading'">
+                                <p class="text-xs mt-0.5"
+                                   :class="{
+                                       'text-green-600':  item.status === 'done',
+                                       'text-red-500':    item.status === 'failed',
+                                       'text-gray-400':   item.status === 'cancelled' || item.status === 'pending',
+                                   }"
+                                   x-text="item.status === 'done'      ? i18n.uploadStatusDone
+                                         : item.status === 'failed'    ? i18n.uploadStatusFailed
+                                         : item.status === 'cancelled' ? i18n.uploadStatusCancelled
+                                         : i18n.uploadStatusPending">
+                                </p>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+            </template>
+        </div>
     </div>
 
     <!-- ── Modal: Rename ────────────────────────────────────────────────────── -->
@@ -603,9 +711,15 @@ const i18n = {
     errorMkdir:         '<?= addcslashes($t->t('js.error.mkdir'),          "\\'") ?>',
     errorDeletePartial:    '<?= addcslashes($t->t('js.error.delete_partial'),    "\\'") ?>',
     errorOperationPartial: '<?= addcslashes($t->t('js.error.operation_partial'), "\\'") ?>',
-    uploadSuccess:      '<?= addcslashes($t->t('upload.success'),          "\\'") ?>',
-    uploadFailed:       '<?= addcslashes($t->t('upload.failed'),           "\\'") ?>',
-    uploadCancelled:    '<?= addcslashes($t->t('upload.cancelled'),        "\\'") ?>',
+    uploadSuccess:        '<?= addcslashes($t->t('upload.success'),          "\\'") ?>',
+    uploadFailed:         '<?= addcslashes($t->t('upload.failed'),           "\\'") ?>',
+    uploadCancelled:      '<?= addcslashes($t->t('upload.cancelled'),        "\\'") ?>',
+    uploadPanelTitle:     '<?= addcslashes($t->t('upload.panel.title'),      "\\'") ?>',
+    uploadPanelClear:     '<?= addcslashes($t->t('upload.panel.clear'),      "\\'") ?>',
+    uploadStatusPending:  '<?= addcslashes($t->t('upload.status.pending'),   "\\'") ?>',
+    uploadStatusDone:     '<?= addcslashes($t->t('upload.status.done'),      "\\'") ?>',
+    uploadStatusFailed:   '<?= addcslashes($t->t('upload.status.failed'),    "\\'") ?>',
+    uploadStatusCancelled:'<?= addcslashes($t->t('upload.status.cancelled'), "\\'") ?>',
 };
 
 function fileBrowser() {
@@ -618,15 +732,11 @@ function fileBrowser() {
         files: [],
         loadingFiles: false,
         dragOver: false,
-        uploading: false,
-        uploadProgress: 0,
-        uploadCurrent: '',
-        uploadFileIndex: 0,
-        uploadFileCount: 0,
-        uploadedBytes: 0,
-        uploadTotalBytes: 0,
-        uploadAbortController: null,
-        uploadCancelled: false,
+        uploadQueue: [],
+        uploadWorkerRunning: false,
+        uploadNextId: 0,
+        showUploadPanel: false,
+        uploadPanelCollapsed: false,
         chunkSize: <?= (int) ($chunkSize ?? 10485760) ?>,
         flash: null,
         flashType: 'success',
@@ -761,79 +871,87 @@ function fileBrowser() {
         },
 
         async uploadFiles(event) {
-            await this.doUpload(event.target.files);
+            this.queueFiles(event.target.files);
             event.target.value = '';
         },
 
         async handleDrop(event) {
             this.dragOver = false;
-            await this.doUpload(event.dataTransfer.files);
+            this.queueFiles(event.dataTransfer.files);
         },
 
-        async doUpload(fileList) {
+        queueFiles(fileList) {
             if (!fileList || fileList.length === 0 || !this.currentShare) return;
-            this.uploading       = true;
-            this.uploadCancelled = false;
-            this.uploadFileCount = fileList.length;
-            const uploaded = [], failed = [];
+            for (const file of fileList) {
+                this.uploadQueue.push({
+                    id:            ++this.uploadNextId,
+                    name:          file.name,
+                    file,
+                    share:         this.currentShare,
+                    path:          this.currentPath,
+                    status:        'pending',
+                    progress:      0,
+                    uploadedBytes: 0,
+                    totalBytes:    file.size,
+                    abortController: null,
+                });
+            }
+            this.showUploadPanel      = true;
+            this.uploadPanelCollapsed = false;
+            if (!this.uploadWorkerRunning) {
+                this.runUploadWorker();
+            }
+        },
 
-            for (let i = 0; i < fileList.length; i++) {
-                if (this.uploadCancelled) break;
-                const file = fileList[i];
-                this.uploadFileIndex  = i + 1;
-                this.uploadCurrent    = file.name;
-                this.uploadProgress   = 0;
-                this.uploadedBytes    = 0;
-                this.uploadTotalBytes = file.size;
+        async runUploadWorker() {
+            this.uploadWorkerRunning = true;
+            while (true) {
+                const item = this.uploadQueue.find(u => u.status === 'pending');
+                if (!item) break;
+                item.status = 'uploading';
                 try {
-                    await this.uploadChunked(file);
-                    if (!this.uploadCancelled) uploaded.push(file.name);
+                    await this.uploadChunkedItem(item);
+                    if (item.status !== 'cancelled') item.status = 'done';
                 } catch (e) {
-                    if (!this.uploadCancelled) failed.push(file.name);
+                    if (item.status !== 'cancelled') item.status = 'failed';
+                }
+                // Refresh file list if still in the same folder
+                if (item.share === this.currentShare && item.path === this.currentPath) {
+                    await this.loadFiles();
                 }
             }
-
-            this.uploading             = false;
-            this.uploadAbortController = null;
-            if (this.uploadCancelled) {
-                this.showFlash(i18n.uploadCancelled, 'error');
-            } else {
-                if (uploaded.length > 0) {
-                    this.showFlash(i18n.uploadSuccess.replace(':count', uploaded.length), 'success');
-                }
-                if (failed.length > 0) {
-                    this.showFlash(i18n.uploadFailed.replace(':files', failed.join(', ')), 'error');
-                }
-            }
-            await this.loadFiles();
+            this.uploadWorkerRunning = false;
         },
 
-        cancelUpload() {
-            this.uploadCancelled = true;
-            if (this.uploadAbortController) {
-                this.uploadAbortController.abort();
+        cancelQueueItem(item) {
+            if (item.status === 'pending') {
+                item.status = 'cancelled';
+            } else if (item.status === 'uploading') {
+                item.status = 'cancelled';
+                item.abortController?.abort();
             }
         },
 
-        async uploadChunked(file) {
+        async uploadChunkedItem(item) {
+            const file  = item.file;
             const total = Math.max(1, Math.ceil(file.size / this.chunkSize));
             for (let i = 0; i < total; i++) {
-                if (this.uploadCancelled) return;
+                if (item.status === 'cancelled') return;
                 const start = i * this.chunkSize;
                 const end   = Math.min(start + this.chunkSize, file.size);
                 const fd    = new FormData();
-                fd.append('share',       this.currentShare);
-                fd.append('path',        this.currentPath);
+                fd.append('share',       item.share);
+                fd.append('path',        item.path);
                 fd.append('filename',    file.name);
                 fd.append('chunk_index', i);
                 fd.append('chunk_total', total);
                 fd.append('chunk',       file.slice(start, end), file.name);
 
-                this.uploadAbortController = new AbortController();
+                item.abortController = new AbortController();
                 const res = await fetch('/upload/chunk', {
                     method: 'POST',
                     body:   fd,
-                    signal: this.uploadAbortController.signal,
+                    signal: item.abortController.signal,
                 });
                 if (!res.ok) {
                     const data = await res.json().catch(() => ({}));
@@ -842,8 +960,8 @@ function fileBrowser() {
                 const data = await res.json();
                 if (data.error) throw new Error(data.error);
 
-                this.uploadedBytes  = Math.min(end, file.size);
-                this.uploadProgress = Math.round((i + 1) / total * 100);
+                item.uploadedBytes = end;
+                item.progress      = Math.round((i + 1) / total * 100);
             }
         },
 

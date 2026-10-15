@@ -45,6 +45,12 @@ return [
     'upload.failed'               => 'Failed: :files',
     'upload.cancel'               => 'Cancel',
     'upload.cancelled'            => 'Upload cancelled.',
+    'upload.panel.title'          => 'Uploads',
+    'upload.panel.clear'          => 'Clear done',
+    'upload.status.pending'       => 'Waiting…',
+    'upload.status.done'          => 'Done',
+    'upload.status.failed'        => 'Failed',
+    'upload.status.cancelled'     => 'Cancelled',
 
     // Dialogs
     'dialog.movecopy.title'        => 'Move / Copy',

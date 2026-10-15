@@ -45,6 +45,12 @@ return [
     'upload.failed'               => 'Échec : :files',
     'upload.cancel'               => 'Annuler',
     'upload.cancelled'            => 'Envoi annulé.',
+    'upload.panel.title'          => 'Envois',
+    'upload.panel.clear'          => 'Effacer terminés',
+    'upload.status.pending'       => 'En attente…',
+    'upload.status.done'          => 'Terminé',
+    'upload.status.failed'        => 'Échec',
+    'upload.status.cancelled'     => 'Annulé',
 
     // Dialogs
     'dialog.movecopy.title'        => 'Déplacer / Copier',
