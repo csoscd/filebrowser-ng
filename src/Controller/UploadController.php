@@ -85,6 +85,7 @@ class UploadController
             Response::json(['error' => 'invalid chunk parameters'], 400);
         }
 
+        // Each upload gets a single growing temp file – no per-chunk files, no assembly step.
         $tmpDir = sys_get_temp_dir()
                 . '/fbng_' . preg_replace('/[^a-zA-Z0-9]/', '', session_id())
                 . '_' . md5($share . '/' . ltrim($path, '/') . '/' . $filename);
@@ -93,39 +94,27 @@ class UploadController
             Response::json(['error' => 'cannot create temp dir'], 500);
         }
 
-        $chunkPath = $tmpDir . '/chunk_' . sprintf('%05d', $chunkIndex);
-        if (!move_uploaded_file($chunkFile['tmp_name'], $chunkPath)) {
-            Response::json(['error' => 'failed to store chunk'], 500);
-        }
+        $assembledPath = $tmpDir . '/upload';
 
-        // Not the last chunk yet
+        // Append this chunk directly to the assembled file
+        $out = fopen($assembledPath, $chunkIndex === 0 ? 'wb' : 'ab');
+        if ($out === false) {
+            Response::json(['error' => 'cannot write temp file'], 500);
+        }
+        $in = fopen($chunkFile['tmp_name'], 'rb');
+        stream_copy_to_stream($in, $out);
+        fclose($in);
+        fclose($out);
+
+        // Not the last chunk – acknowledge and wait for next
         if ($chunkIndex < $chunkTotal - 1) {
             Response::json(['ok' => true, 'chunk' => $chunkIndex]);
         }
 
-        // Last chunk: assemble into chunk_00000 (append chunks 1..N to it), then upload
-        $assembledPath = $tmpDir . '/chunk_00000';
+        // Last chunk received – upload assembled file to SMB
+        $this->connectSmb();
 
         try {
-            $out = fopen($assembledPath, 'ab');
-            if ($out === false) {
-                throw new \RuntimeException('Cannot open assembled file for writing');
-            }
-            for ($i = 1; $i < $chunkTotal; $i++) {
-                $partPath = $tmpDir . '/chunk_' . sprintf('%05d', $i);
-                $in = fopen($partPath, 'rb');
-                if ($in === false) {
-                    fclose($out);
-                    throw new \RuntimeException("Chunk {$i} missing");
-                }
-                stream_copy_to_stream($in, $out);
-                fclose($in);
-                unlink($partPath);
-            }
-            fclose($out);
-
-            $this->connectSmb();
-
             $targetPath = ltrim($path . '/' . $filename, '/');
             $this->provider->putFile($share, $targetPath, $assembledPath);
 
@@ -146,12 +135,6 @@ class UploadController
         } finally {
             if (file_exists($assembledPath)) {
                 unlink($assembledPath);
-            }
-            for ($i = 1; $i < $chunkTotal; $i++) {
-                $p = $tmpDir . '/chunk_' . sprintf('%05d', $i);
-                if (file_exists($p)) {
-                    unlink($p);
-                }
             }
             if (is_dir($tmpDir)) {
                 @rmdir($tmpDir);

@@ -45,6 +45,7 @@ return [
     'upload.failed'               => 'Échec : :files',
     'upload.cancel'               => 'Annuler',
     'upload.cancelled'            => 'Envoi annulé.',
+    'upload.finalizing'           => 'Enregistrement…',
     'upload.panel.title'          => 'Envois',
     'upload.panel.clear'          => 'Effacer terminés',
     'upload.status.pending'       => 'En attente…',

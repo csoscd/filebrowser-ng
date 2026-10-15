@@ -446,15 +446,23 @@
                             <template x-if="item.status === 'uploading'">
                                 <div class="mt-1">
                                     <div class="flex justify-between text-xs text-gray-400 mb-0.5 tabular-nums">
-                                        <span x-text="formatSize(item.uploadedBytes) + ' / ' + formatSize(item.totalBytes)"></span>
+                                        <span x-text="item.finalizing ? formatSize(item.totalBytes) : formatSize(item.uploadedBytes) + ' / ' + formatSize(item.totalBytes)"></span>
                                         <span class="flex gap-1.5 items-center">
-                                            <span x-show="item.speed > 0" x-text="formatSpeed(item.speed)" class="text-blue-400"></span>
-                                            <span x-text="item.progress + '%'"></span>
+                                            <template x-if="item.finalizing">
+                                                <span class="text-blue-500 animate-pulse"><?= htmlspecialchars($t->t('upload.finalizing')) ?></span>
+                                            </template>
+                                            <template x-if="!item.finalizing">
+                                                <span class="flex gap-1.5 items-center">
+                                                    <span x-show="item.speed > 0" x-text="formatSpeed(item.speed)" class="text-blue-400"></span>
+                                                    <span x-text="item.progress + '%'"></span>
+                                                </span>
+                                            </template>
                                         </span>
                                     </div>
                                     <div class="w-full bg-gray-200 rounded-full h-1">
-                                        <div class="bg-blue-500 h-1 rounded-full transition-all duration-150"
-                                             :style="'width:' + item.progress + '%'"></div>
+                                        <div class="h-1 rounded-full transition-all duration-150"
+                                             :class="item.finalizing ? 'bg-blue-400 animate-pulse w-full' : 'bg-blue-500'"
+                                             :style="item.finalizing ? '' : 'width:' + item.progress + '%'"></div>
                                     </div>
                                 </div>
                             </template>
@@ -897,6 +905,7 @@ function fileBrowser() {
                     uploadedBytes: 0,
                     totalBytes:    file.size,
                     speed:         0,
+                    finalizing:    false,
                     abortController: null,
                 });
             }
@@ -953,6 +962,10 @@ function fileBrowser() {
                 fd.append('chunk',       file.slice(start, end), file.name);
 
                 item.abortController = new AbortController();
+                // Mark last chunk as "finalizing" before sending – server will
+                // write the assembled file to SMB which can take a while.
+                if (i === total - 1) item.finalizing = true;
+
                 const t0  = performance.now();
                 const res = await fetch('/upload/chunk', {
                     method: 'POST',
@@ -960,6 +973,7 @@ function fileBrowser() {
                     signal: item.abortController.signal,
                 });
                 const elapsed = (performance.now() - t0) / 1000;
+                item.finalizing = false;
                 if (!res.ok) {
                     const data = await res.json().catch(() => ({}));
                     throw new Error(data.error ?? i18n.errorChunkUpload);

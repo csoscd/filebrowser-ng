@@ -45,6 +45,7 @@ return [
     'upload.failed'               => 'Failed: :files',
     'upload.cancel'               => 'Cancel',
     'upload.cancelled'            => 'Upload cancelled.',
+    'upload.finalizing'           => 'Saving…',
     'upload.panel.title'          => 'Uploads',
     'upload.panel.clear'          => 'Clear done',
     'upload.status.pending'       => 'Waiting…',

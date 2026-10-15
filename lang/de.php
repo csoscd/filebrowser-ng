@@ -45,6 +45,7 @@ return [
     'upload.failed'               => 'Fehlgeschlagen: :files',
     'upload.cancel'               => 'Abbrechen',
     'upload.cancelled'            => 'Upload abgebrochen.',
+    'upload.finalizing'           => 'Wird gespeichert…',
     'upload.panel.title'          => 'Uploads',
     'upload.panel.clear'          => 'Erledigte löschen',
     'upload.status.pending'       => 'Wartend…',
