@@ -82,7 +82,12 @@ class BrowserController
                 'sort'  => $sort,
             ]);
         } catch (\Throwable $e) {
-            $this->logger->error('listFiles failed', ['error' => $e->getMessage()]);
+            $this->logger->error('listFiles failed', [
+                'share' => $share,
+                'path'  => $path,
+                'class' => get_class($e),
+                'error' => $e->getMessage(),
+            ]);
             Response::json(['error' => 'Failed to list directory'], 500);
         }
     }

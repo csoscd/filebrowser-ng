@@ -447,7 +447,10 @@
                                 <div class="mt-1">
                                     <div class="flex justify-between text-xs text-gray-400 mb-0.5 tabular-nums">
                                         <span x-text="formatSize(item.uploadedBytes) + ' / ' + formatSize(item.totalBytes)"></span>
-                                        <span x-text="item.progress + '%'"></span>
+                                        <span class="flex gap-1.5 items-center">
+                                            <span x-show="item.speed > 0" x-text="formatSpeed(item.speed)" class="text-blue-400"></span>
+                                            <span x-text="item.progress + '%'"></span>
+                                        </span>
                                     </div>
                                     <div class="w-full bg-gray-200 rounded-full h-1">
                                         <div class="bg-blue-500 h-1 rounded-full transition-all duration-150"
@@ -893,6 +896,7 @@ function fileBrowser() {
                     progress:      0,
                     uploadedBytes: 0,
                     totalBytes:    file.size,
+                    speed:         0,
                     abortController: null,
                 });
             }
@@ -937,9 +941,10 @@ function fileBrowser() {
             const total = Math.max(1, Math.ceil(file.size / this.chunkSize));
             for (let i = 0; i < total; i++) {
                 if (item.status === 'cancelled') return;
-                const start = i * this.chunkSize;
-                const end   = Math.min(start + this.chunkSize, file.size);
-                const fd    = new FormData();
+                const start      = i * this.chunkSize;
+                const end        = Math.min(start + this.chunkSize, file.size);
+                const chunkBytes = end - start;
+                const fd         = new FormData();
                 fd.append('share',       item.share);
                 fd.append('path',        item.path);
                 fd.append('filename',    file.name);
@@ -948,17 +953,25 @@ function fileBrowser() {
                 fd.append('chunk',       file.slice(start, end), file.name);
 
                 item.abortController = new AbortController();
+                const t0  = performance.now();
                 const res = await fetch('/upload/chunk', {
                     method: 'POST',
                     body:   fd,
                     signal: item.abortController.signal,
                 });
+                const elapsed = (performance.now() - t0) / 1000;
                 if (!res.ok) {
                     const data = await res.json().catch(() => ({}));
                     throw new Error(data.error ?? i18n.errorChunkUpload);
                 }
                 const data = await res.json();
                 if (data.error) throw new Error(data.error);
+
+                // Exponential moving average for smooth speed display
+                const rawSpeed = elapsed > 0 ? chunkBytes / elapsed : 0;
+                item.speed     = item.speed > 0
+                    ? 0.3 * rawSpeed + 0.7 * item.speed
+                    : rawSpeed;
 
                 item.uploadedBytes = end;
                 item.progress      = Math.round((i + 1) / total * 100);
@@ -1222,6 +1235,12 @@ function fileBrowser() {
             const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
             const i = Math.floor(Math.log(bytes) / Math.log(k));
             return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+        },
+
+        formatSpeed(bytesPerSec) {
+            const mbits = bytesPerSec * 8 / 1_000_000;
+            if (mbits < 1) return (bytesPerSec * 8 / 1000).toFixed(0) + ' Kbit/s';
+            return mbits.toFixed(1) + ' Mbit/s';
         },
 
         formatDate(ts) {
