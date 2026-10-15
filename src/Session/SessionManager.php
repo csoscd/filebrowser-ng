@@ -61,7 +61,9 @@ class SessionManager
                 $params['secure'], $params['httponly']
             );
         }
-        session_destroy();
+        if (session_status() === PHP_SESSION_ACTIVE) {
+            session_destroy();
+        }
     }
 
     public function getUsername(): ?string

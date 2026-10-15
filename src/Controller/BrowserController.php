@@ -38,7 +38,7 @@ class BrowserController
 
     public function shares(Request $request): void
     {
-        $this->requireAuth();
+        $this->requireAuthApi();
 
         $username    = $this->session->getUsername() ?? '';
         $defaultHost = (string) $this->config->get('smb.server', '');
@@ -132,7 +132,7 @@ class BrowserController
 
     public function listFiles(Request $request): void
     {
-        $this->requireAuth();
+        $this->requireAuthApi();
         $share  = (string) $request->getQuery('share', '');
         $path   = (string) $request->getQuery('path', '');
         $server = (string) $request->getQuery('server', '');
@@ -170,7 +170,7 @@ class BrowserController
 
     public function download(Request $request): void
     {
-        $this->requireAuth();
+        $this->requireAuthApi();
         $share    = (string) $request->getQuery('share', '');
         $path     = (string) $request->getQuery('path', '');
         $server   = (string) $request->getQuery('server', '');
@@ -193,7 +193,7 @@ class BrowserController
 
     public function downloadZip(Request $request): void
     {
-        $this->requireAuth();
+        $this->requireAuthApi();
         $data   = $request->jsonBody();
         $share  = (string) ($data['share']  ?? '');
         $paths  = array_values(array_filter(array_map('strval', (array) ($data['paths'] ?? []))));
@@ -244,7 +244,7 @@ class BrowserController
 
     public function saveSortPref(Request $request): void
     {
-        $this->requireAuth();
+        $this->requireAuthApi();
         $data   = $request->jsonBody();
         $share  = (string) ($data['share']  ?? '');
         $path   = (string) ($data['path']   ?? '');
@@ -267,6 +267,13 @@ class BrowserController
     {
         if (!$this->session->isAuthenticated()) {
             Response::redirect('/');
+        }
+    }
+
+    private function requireAuthApi(): void
+    {
+        if (!$this->session->isAuthenticated()) {
+            Response::json(['error' => 'unauthorized'], 401);
         }
     }
 
