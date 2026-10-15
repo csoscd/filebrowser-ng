@@ -88,11 +88,13 @@ class UploadController
         $this->connectSmb();
 
         $targetPath = ltrim($path . '/' . $filename, '/');
+        $partPath   = $targetPath . '.part';
 
         try {
             // Stream chunk directly to the SMB share – no local temp file needed.
+            // Write to <filename>.part until all chunks arrive, then rename to final name.
             // Chunk 0 → write (creates/overwrites), chunks 1..N → append.
-            $out = $this->provider->openFileStream($share, $targetPath, $chunkIndex > 0);
+            $out = $this->provider->openFileStream($share, $partPath, $chunkIndex > 0);
             $in  = fopen($chunkFile['tmp_name'], 'rb');
             stream_copy_to_stream($in, $out);
             fclose($in);
@@ -104,9 +106,8 @@ class UploadController
                 'error' => $e->getMessage(),
                 'class' => get_class($e),
             ]);
-            // Try to remove the partial file so a retry can start clean.
             try {
-                $this->provider->delete($share, $targetPath);
+                $this->provider->delete($share, $partPath);
             } catch (\Throwable) {
                 // ignore cleanup failure
             }
@@ -115,6 +116,22 @@ class UploadController
 
         if ($chunkIndex < $chunkTotal - 1) {
             Response::json(['ok' => true, 'chunk' => $chunkIndex]);
+        }
+
+        // Last chunk written – rename .part → final name
+        try {
+            $this->provider->rename($share, $partPath, $targetPath);
+        } catch (\Throwable $e) {
+            $this->logger->error('Chunk rename failed', [
+                'file'  => $filename,
+                'error' => $e->getMessage(),
+            ]);
+            try {
+                $this->provider->delete($share, $partPath);
+            } catch (\Throwable) {
+                // ignore cleanup failure
+            }
+            Response::json(['error' => 'rename failed: ' . $e->getMessage()], 500);
         }
 
         $this->logger->info('Chunked upload complete', [
