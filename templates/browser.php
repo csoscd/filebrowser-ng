@@ -664,7 +664,7 @@
             <div x-show="!pickerExecuting" class="flex flex-col flex-1 overflow-hidden min-h-0">
                 <!-- Breadcrumb -->
                 <div class="px-4 py-2 flex items-center gap-1 text-sm border-b border-gray-100 bg-gray-50 flex-wrap flex-shrink-0">
-                    <button @click="pickerGoToShares()"
+                    <button @click="pickerServers.length > 1 ? pickerGoToServers() : pickerGoToShares()"
                             class="font-medium text-blue-600 hover:text-blue-800 transition">
                         <?= htmlspecialchars($t->t('dialog.picker.shares'), ENT_QUOTES) ?>
                     </button>
@@ -673,7 +673,7 @@
                             <svg class="w-3 h-3 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
                             </svg>
-                            <button @click="crumb.isShare ? pickerOpenShare(crumb.name) : pickerNavigate(crumb.path)"
+                            <button @click="crumb.isServer ? pickerGoToShares() : (crumb.isShare ? pickerOpenShare(crumb.name) : pickerNavigate(crumb.path))"
                                     class="text-blue-600 hover:text-blue-800 transition truncate max-w-[8rem]"
                                     x-text="crumb.name"></button>
                         </span>
@@ -688,11 +688,31 @@
                         </div>
                     </template>
 
-                    <!-- Shares list -->
-                    <template x-if="!pickerLoading && pickerShare === ''">
+                    <!-- Server list (only when multiple servers available) -->
+                    <template x-if="!pickerLoading && pickerServer === null && pickerServers.length > 1">
                         <div>
-                            <template x-for="s in pickerShares" :key="s._server + '::' + s.name">
-                                <button @click="pickerOpenShare(s.name, s._server)"
+                            <template x-for="srv in pickerServers" :key="srv.id">
+                                <button @click="pickerSelectServer(srv)"
+                                        class="w-full text-left flex items-center gap-2.5 px-4 py-2.5 hover:bg-blue-50 text-sm text-gray-700 transition">
+                                    <svg class="w-4 h-4 text-gray-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                              d="M5 12h14M12 5l7 7-7 7"/>
+                                    </svg>
+                                    <span x-text="srv.display_name" class="truncate flex-1"></span>
+                                    <span x-show="srv.is_default" class="text-xs text-gray-400 mr-1"><?= htmlspecialchars($t->t('server.default_label'), ENT_QUOTES) ?></span>
+                                    <svg class="w-3.5 h-3.5 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                                    </svg>
+                                </button>
+                            </template>
+                        </div>
+                    </template>
+
+                    <!-- Shares list -->
+                    <template x-if="!pickerLoading && pickerServer !== null && pickerShare === ''">
+                        <div>
+                            <template x-for="s in pickerShares" :key="s.name">
+                                <button @click="pickerOpenShare(s.name)"
                                         class="w-full text-left flex items-center gap-2.5 px-4 py-2.5 hover:bg-blue-50 text-sm text-gray-700 transition">
                                     <svg class="w-4 h-4 text-blue-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -918,6 +938,8 @@ function fileBrowser() {
         mkdirValue: '',
 
         showPickerDialog: false,
+        pickerServer: null,
+        pickerServers: [],
         pickerShare: '',
         pickerPath: '',
         pickerShares: [],
@@ -955,15 +977,20 @@ function fileBrowser() {
         },
 
         get pickerBreadcrumbs() {
-            if (!this.pickerShare) return [];
-            const crumbs = [{ name: this.pickerShare, path: '', isShare: true }];
-            if (this.pickerPath) {
-                const parts = this.pickerPath.split('/').filter(Boolean);
-                parts.forEach((name, i) => crumbs.push({
-                    name,
-                    path: parts.slice(0, i + 1).join('/'),
-                    isShare: false,
-                }));
+            const crumbs = [];
+            if (this.pickerServer) {
+                crumbs.push({ name: this.pickerServer.display_name, path: '', isServer: true });
+            }
+            if (this.pickerShare) {
+                crumbs.push({ name: this.pickerShare, path: '', isShare: true });
+                if (this.pickerPath) {
+                    const parts = this.pickerPath.split('/').filter(Boolean);
+                    parts.forEach((name, i) => crumbs.push({
+                        name,
+                        path: parts.slice(0, i + 1).join('/'),
+                        isShare: false,
+                    }));
+                }
             }
             return crumbs;
         },
@@ -1243,8 +1270,12 @@ function fileBrowser() {
         },
 
         async openPicker() {
+            this.pickerServer        = null;
+            this.pickerServers       = [];
             this.pickerShare         = '';
             this.pickerPath          = '';
+            this.pickerShares        = [];
+            this.pickerFolders       = [];
             this.pickerExecuting     = false;
             this.pickerExecuteStatus = '';
             this.showPickerDialog    = true;
@@ -1254,25 +1285,27 @@ function fileBrowser() {
         async loadPickerContent() {
             this.pickerLoading = true;
             try {
-                if (this.pickerShare === '') {
+                if (this.pickerServer === null) {
+                    // Fetch server list
                     const res  = await fetch('/api/shares');
                     const data = await res.json();
-                    // Build flat share list from all servers for the picker
-                    const allShares = [];
-                    for (const srv of (data.servers ?? [])) {
-                        for (const s of (srv.shares ?? [])) {
-                            allShares.push({ ...s, _server: srv.host });
-                        }
-                    }
-                    this.pickerShares  = allShares;
+                    this.pickerServers = (data.servers ?? []).filter(s => !s.needs_credentials);
+                    this.pickerShares  = [];
                     this.pickerFolders = [];
-                    this._pickerServerMap = {};
-                    for (const s of allShares) this._pickerServerMap[s.name] = s._server;
+                    // Single server: skip server-selection level
+                    if (this.pickerServers.length === 1) {
+                        this.pickerServer = this.pickerServers[0];
+                        this.pickerShares = this.pickerServer.shares ?? [];
+                    }
+                } else if (this.pickerShare === '') {
+                    // Show shares of selected server (data already in pickerServer)
+                    this.pickerShares  = this.pickerServer.shares ?? [];
+                    this.pickerFolders = [];
                 } else {
-                    const serverParam = this._pickerServerHost ?? '';
+                    // Fetch folders inside the chosen share
                     const res  = await fetch('/api/files?share=' + encodeURIComponent(this.pickerShare)
                                            + '&path='   + encodeURIComponent(this.pickerPath)
-                                           + (serverParam ? '&server=' + encodeURIComponent(serverParam) : ''));
+                                           + '&server=' + encodeURIComponent(this.pickerServer.host));
                     const data = await res.json();
                     this.pickerFolders = (data.files ?? []).filter(f => f.type === 'dir');
                     this.pickerShares  = [];
@@ -1285,10 +1318,25 @@ function fileBrowser() {
             }
         },
 
-        async pickerOpenShare(name, server) {
+        async pickerSelectServer(srv) {
+            this.pickerServer = srv;
+            this.pickerShare  = '';
+            this.pickerPath   = '';
+            await this.loadPickerContent();
+        },
+
+        async pickerGoToServers() {
+            this.pickerServer  = null;
+            this.pickerShare   = '';
+            this.pickerPath    = '';
+            this.pickerShares  = [];
+            this.pickerFolders = [];
+            // Re-use already-fetched list; no network call needed
+        },
+
+        async pickerOpenShare(name) {
             this.pickerShare = name;
             this.pickerPath  = '';
-            this._pickerServerHost = server ?? (this._pickerServerMap ?? {})[name] ?? this.currentServer ?? '';
             await this.loadPickerContent();
         },
 
@@ -1298,8 +1346,8 @@ function fileBrowser() {
         },
 
         async pickerGoToShares() {
-            this.pickerShare = '';
-            this.pickerPath  = '';
+            this.pickerShare  = '';
+            this.pickerPath   = '';
             await this.loadPickerContent();
         },
 
@@ -1316,11 +1364,12 @@ function fileBrowser() {
                     ? item.name + ' (' + (i + 1) + '/' + items.length + ')'
                     : item.name;
                 try {
-                    const destShareParam = this.pickerShare !== this.currentShare
+                    const destServer     = this.pickerServer?.host ?? '';
+                    const destShareParam = (this.pickerShare !== this.currentShare || destServer !== (this.currentServer ?? ''))
                         ? this.pickerShare : undefined;
                     const payload = operation === 'move'
-                        ? { share: this.currentShare, server: this.currentServer ?? '', old_path: item.path, dest_dir: destDir, dest_share: destShareParam }
-                        : { share: this.currentShare, server: this.currentServer ?? '', src_path: item.path, dest_dir: destDir, dest_share: destShareParam };
+                        ? { share: this.currentShare, server: this.currentServer ?? '', old_path: item.path, dest_dir: destDir, dest_share: destShareParam, dest_server: destServer }
+                        : { share: this.currentShare, server: this.currentServer ?? '', src_path: item.path, dest_dir: destDir, dest_share: destShareParam, dest_server: destServer };
                     const res  = await fetch(endpoint, {
                         method:  'POST',
                         headers: { 'Content-Type': 'application/json' },
