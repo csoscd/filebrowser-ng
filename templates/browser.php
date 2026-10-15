@@ -918,13 +918,14 @@ function fileBrowser() {
 
         async runUploadWorker() {
             this.uploadWorkerRunning = true;
+            let anyDone = false;
             while (true) {
                 const item = this.uploadQueue.find(u => u.status === 'pending');
                 if (!item) break;
                 item.status = 'uploading';
                 try {
                     await this.uploadChunkedItem(item);
-                    if (item.status !== 'cancelled') item.status = 'done';
+                    if (item.status !== 'cancelled') { item.status = 'done'; anyDone = true; }
                 } catch (e) {
                     if (item.status !== 'cancelled') item.status = 'failed';
                 }
@@ -934,6 +935,7 @@ function fileBrowser() {
                 }
             }
             this.uploadWorkerRunning = false;
+            if (anyDone) await this.loadShares();
         },
 
         cancelQueueItem(item) {
