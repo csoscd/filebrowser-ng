@@ -66,4 +66,15 @@ return [
     // Nav
     'nav.logout'                  => 'Abmelden',
     'nav.logged_in_as'            => 'Angemeldet als :user',
+
+    // JS error messages
+    'js.error.load_shares'        => 'Freigaben konnten nicht geladen werden',
+    'js.error.load_files'         => 'Dateien konnten nicht geladen werden',
+    'js.error.chunk_upload'       => 'Upload-Fragment fehlgeschlagen',
+    'js.error.download_zip'       => 'ZIP-Download fehlgeschlagen',
+    'js.error.rename'             => 'Umbenennen fehlgeschlagen',
+    'js.error.move'               => 'Verschieben fehlgeschlagen',
+    'js.error.copy'               => 'Kopieren fehlgeschlagen',
+    'js.error.mkdir'              => 'Ordner konnte nicht erstellt werden',
+    'js.error.delete_partial'     => 'Löschen fehlgeschlagen: :files',
 ];

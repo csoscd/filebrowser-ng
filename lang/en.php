@@ -66,4 +66,15 @@ return [
     // Nav
     'nav.logout'                  => 'Logout',
     'nav.logged_in_as'            => 'Signed in as :user',
+
+    // JS error messages
+    'js.error.load_shares'        => 'Failed to load shares',
+    'js.error.load_files'         => 'Failed to load files',
+    'js.error.chunk_upload'       => 'Chunk upload failed',
+    'js.error.download_zip'       => 'ZIP download failed',
+    'js.error.rename'             => 'Rename failed',
+    'js.error.move'               => 'Move failed',
+    'js.error.copy'               => 'Copy failed',
+    'js.error.mkdir'              => 'Create folder failed',
+    'js.error.delete_partial'     => 'Failed to delete: :files',
 ];

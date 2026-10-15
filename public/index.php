@@ -29,6 +29,7 @@ use FilebrowserNg\Http\Response;
 use FilebrowserNg\Http\Router;
 use FilebrowserNg\I18n\Translator;
 use FilebrowserNg\Repository\ServerRepository;
+use FilebrowserNg\Repository\UserPreferenceRepository;
 use FilebrowserNg\Session\SessionManager;
 use FilebrowserNg\Storage\Smb\SmbProvider;
 use FilebrowserNg\View\TemplateEngine;
@@ -68,11 +69,23 @@ $logger->pushHandler(new RotatingFileHandler(
 $session = new SessionManager($config);
 $session->start();
 
-// ── I18n + View ────────────────────────────────────────────────────────────
-$translator = new Translator(
-    dirname(__DIR__) . '/lang',
-    (string) $config->get('i18n.default_language', 'en')
-);
+// ── Repositories (early, needed for language preference) ──────────────────
+$dbPath   = (string) $config->get('database.path', '/var/www/data/filebrowser.sqlite');
+$prefRepo = new UserPreferenceRepository($dbPath);
+
+// ── I18n: determine active language ───────────────────────────────────────
+// Priority: SQLite user preference (if logged in) > session > config default
+$defaultLang = (string) $config->get('i18n.default_language', 'en');
+$language    = $session->get('language', $defaultLang);
+if ($session->isAuthenticated()) {
+    $savedLang = $prefRepo->get($session->getUsername() ?? '', 'language', '');
+    if ($savedLang !== '') {
+        $language = $savedLang;
+        $session->set('language', $language);
+    }
+}
+
+$translator = new Translator(dirname(__DIR__) . '/lang', $language);
 $view = new TemplateEngine(dirname(__DIR__) . '/templates', $translator);
 $view->setGlobals([
     'appVersion' => (string) (getenv('APP_VERSION') ?: 'dev'),
@@ -81,10 +94,8 @@ $view->setGlobals([
 // ── Storage ────────────────────────────────────────────────────────────────
 $provider = new SmbProvider($logger, (string) $config->get('smb.domain', ''));
 
-// ── Repository ─────────────────────────────────────────────────────────────
-$serverRepo = new ServerRepository(
-    (string) $config->get('database.path', '/var/www/data/filebrowser.sqlite')
-);
+// ── Repositories ──────────────────────────────────────────────────────────
+$serverRepo = new ServerRepository($dbPath);
 
 // ── Controllers ────────────────────────────────────────────────────────────
 $auth    = new AuthController($session, $provider, $view, $config, $logger);
@@ -110,5 +121,18 @@ $router->post('/file/move',       fn($req) => $actions->move($req));
 $router->post('/file/copy',       fn($req) => $actions->copy($req));
 $router->post('/file/delete',     fn($req) => $actions->delete($req));
 $router->post('/file/mkdir',      fn($req) => $actions->mkdir($req));
+
+$router->get('/lang/{code}', function (Request $req, array $params) use ($session, $prefRepo): void {
+    $allowed = ['en', 'de', 'fr'];
+    $code    = $params['code'] ?? '';
+    if (in_array($code, $allowed, true)) {
+        $session->set('language', $code);
+        if ($session->isAuthenticated()) {
+            $prefRepo->set($session->getUsername() ?? '', 'language', $code);
+        }
+    }
+    $ref = $_SERVER['HTTP_REFERER'] ?? ($session->isAuthenticated() ? '/browser' : '/');
+    Response::redirect($ref);
+});
 
 $router->dispatch(new Request());

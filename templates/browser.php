@@ -445,6 +445,20 @@
 </div>
 
 <script>
+const i18n = {
+    errorLoadShares:    '<?= addcslashes($t->t('js.error.load_shares'),    "\\'") ?>',
+    errorLoadFiles:     '<?= addcslashes($t->t('js.error.load_files'),     "\\'") ?>',
+    errorChunkUpload:   '<?= addcslashes($t->t('js.error.chunk_upload'),   "\\'") ?>',
+    errorDownloadZip:   '<?= addcslashes($t->t('js.error.download_zip'),   "\\'") ?>',
+    errorRename:        '<?= addcslashes($t->t('js.error.rename'),         "\\'") ?>',
+    errorMove:          '<?= addcslashes($t->t('js.error.move'),           "\\'") ?>',
+    errorCopy:          '<?= addcslashes($t->t('js.error.copy'),           "\\'") ?>',
+    errorMkdir:         '<?= addcslashes($t->t('js.error.mkdir'),          "\\'") ?>',
+    errorDeletePartial: '<?= addcslashes($t->t('js.error.delete_partial'), "\\'") ?>',
+    uploadSuccess:      '<?= addcslashes($t->t('upload.success'),          "\\'") ?>',
+    uploadFailed:       '<?= addcslashes($t->t('upload.failed'),           "\\'") ?>',
+};
+
 function fileBrowser() {
     return {
         shares: [],
@@ -532,7 +546,7 @@ function fileBrowser() {
                 const data = await res.json();
                 this.shares = data.auto ?? [];
             } catch (e) {
-                this.showFlash('Failed to load shares', 'error');
+                this.showFlash(i18n.errorLoadShares, 'error');
             } finally {
                 this.loadingShares = false;
             }
@@ -560,7 +574,7 @@ function fileBrowser() {
                 const data = await res.json();
                 this.files = data.files ?? [];
             } catch (e) {
-                this.showFlash('Failed to load files', 'error');
+                this.showFlash(i18n.errorLoadFiles, 'error');
             } finally {
                 this.loadingFiles = false;
             }
@@ -597,10 +611,10 @@ function fileBrowser() {
 
             this.uploading = false;
             if (uploaded.length > 0) {
-                this.showFlash(uploaded.length + ' file(s) uploaded.', 'success');
+                this.showFlash(i18n.uploadSuccess.replace(':count', uploaded.length), 'success');
             }
             if (failed.length > 0) {
-                this.showFlash('Failed: ' + failed.join(', '), 'error');
+                this.showFlash(i18n.uploadFailed.replace(':files', failed.join(', ')), 'error');
             }
             await this.loadFiles();
         },
@@ -621,7 +635,7 @@ function fileBrowser() {
                 const res = await fetch('/upload/chunk', { method: 'POST', body: fd });
                 if (!res.ok) {
                     const data = await res.json().catch(() => ({}));
-                    throw new Error(data.error ?? 'Chunk upload failed');
+                    throw new Error(data.error ?? i18n.errorChunkUpload);
                 }
                 const data = await res.json();
                 if (data.error) throw new Error(data.error);
@@ -679,7 +693,7 @@ function fileBrowser() {
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ share: this.currentShare, paths }),
                 });
-                if (!res.ok) { this.showFlash('ZIP download failed', 'error'); return; }
+                if (!res.ok) { this.showFlash(i18n.errorDownloadZip, 'error'); return; }
                 const blob = await res.blob();
                 const url  = URL.createObjectURL(blob);
                 const a    = document.createElement('a');
@@ -687,7 +701,7 @@ function fileBrowser() {
                 document.body.appendChild(a); a.click();
                 document.body.removeChild(a); URL.revokeObjectURL(url);
             } catch (e) {
-                this.showFlash('ZIP download failed', 'error');
+                this.showFlash(i18n.errorDownloadZip, 'error');
             }
         },
 
@@ -715,10 +729,10 @@ function fileBrowser() {
                 if (data.success) {
                     await this.loadFiles();
                 } else {
-                    this.showFlash(data.error ?? 'Move failed', 'error');
+                    this.showFlash(data.error ?? i18n.errorMove, 'error');
                 }
             } catch (e) {
-                this.showFlash('Move failed', 'error');
+                this.showFlash(i18n.errorMove, 'error');
             }
         },
 
@@ -739,10 +753,10 @@ function fileBrowser() {
                 if (data.success) {
                     await this.loadFiles();
                 } else {
-                    this.showFlash(data.error ?? 'Copy failed', 'error');
+                    this.showFlash(data.error ?? i18n.errorCopy, 'error');
                 }
             } catch (e) {
-                this.showFlash('Copy failed', 'error');
+                this.showFlash(i18n.errorCopy, 'error');
             }
         },
 
@@ -770,10 +784,10 @@ function fileBrowser() {
                 if (data.success) {
                     await this.loadFiles();
                 } else {
-                    this.showFlash(data.error ?? 'Rename failed', 'error');
+                    this.showFlash(data.error ?? i18n.errorRename, 'error');
                 }
             } catch (e) {
-                this.showFlash('Rename failed', 'error');
+                this.showFlash(i18n.errorRename, 'error');
             }
         },
 
@@ -795,7 +809,7 @@ function fileBrowser() {
                 }
             }
             if (failed.length > 0) {
-                this.showFlash('Failed to delete: ' + failed.join(', '), 'error');
+                this.showFlash(i18n.errorDeletePartial.replace(':files', failed.join(', ')), 'error');
             }
             await this.loadFiles();
         },
@@ -818,10 +832,10 @@ function fileBrowser() {
                     this.mkdirValue = '';
                     await this.loadFiles();
                 } else {
-                    this.showFlash(data.error ?? 'Create folder failed', 'error');
+                    this.showFlash(data.error ?? i18n.errorMkdir, 'error');
                 }
             } catch (e) {
-                this.showFlash('Create folder failed', 'error');
+                this.showFlash(i18n.errorMkdir, 'error');
             }
         },
 
