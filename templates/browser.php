@@ -6,6 +6,13 @@
     <!-- ── Top navigation ──────────────────────────────────────────────────── -->
     <header class="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between shadow-sm flex-shrink-0">
         <div class="flex items-center gap-3">
+            <!-- Hamburger (mobile only) -->
+            <button @click="sidebarOpen = !sidebarOpen"
+                    class="md:hidden p-1 -ml-1 rounded-lg text-gray-500 hover:text-gray-700 hover:bg-gray-100 transition">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+                </svg>
+            </button>
             <div class="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center">
                 <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -25,9 +32,26 @@
         </div>
     </header>
 
-    <div class="flex flex-1 overflow-hidden">
+    <div class="flex flex-1 overflow-hidden relative">
+
+        <!-- ── Backdrop (mobile only) ──────────────────────────────────────── -->
+        <div x-show="sidebarOpen"
+             x-transition:enter="transition-opacity ease-out duration-200"
+             x-transition:enter-start="opacity-0"
+             x-transition:enter-end="opacity-100"
+             x-transition:leave="transition-opacity ease-in duration-150"
+             x-transition:leave-start="opacity-100"
+             x-transition:leave-end="opacity-0"
+             @click="sidebarOpen = false"
+             class="fixed inset-0 z-20 bg-black/40 md:hidden"
+             x-cloak></div>
+
         <!-- ── Sidebar: shares ─────────────────────────────────────────────── -->
-        <aside class="w-56 bg-white border-r border-gray-200 flex flex-col flex-shrink-0 overflow-y-auto">
+        <aside :class="sidebarOpen ? 'translate-x-0' : '-translate-x-full'"
+               class="fixed md:relative md:transform-none inset-y-0 left-0 z-30
+                      w-64 md:w-56 bg-white border-r border-gray-200
+                      flex flex-col flex-shrink-0 overflow-y-auto
+                      transform transition-transform duration-200 ease-in-out">
             <div class="px-4 pt-4 pb-2">
                 <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider">
                     <?= htmlspecialchars($t->t('browser.shares'), ENT_QUOTES) ?>
@@ -43,7 +67,7 @@
             <nav class="flex-1 px-2 pb-4">
                 <template x-for="share in shares" :key="share.name">
                     <button
-                        @click="openShare(share.name)"
+                        @click="openShare(share.name); sidebarOpen = false"
                         :class="currentShare === share.name
                             ? 'bg-blue-50 text-blue-700 font-medium'
                             : 'text-gray-700 hover:bg-gray-100'"
@@ -581,6 +605,7 @@ function fileBrowser() {
     return {
         shares: [],
         loadingShares: true,
+        sidebarOpen: false,
         currentShare: null,
         currentPath: '',
         files: [],

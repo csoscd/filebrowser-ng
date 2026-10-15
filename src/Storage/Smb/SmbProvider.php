@@ -78,21 +78,24 @@ class SmbProvider implements StorageProviderInterface
             return null;
         }
         try {
-            $creds = 'username=' . $this->connectionUsername . "\n"
-                   . 'password=' . $this->connectionPassword . "\n";
+            // smbclient -A requires "key = value" format with spaces
+            $creds = 'username = ' . $this->connectionUsername . "\n"
+                   . 'password = ' . $this->connectionPassword . "\n";
             if ($this->connectionDomain !== '') {
-                $creds .= 'domain=' . $this->connectionDomain . "\n";
+                $creds .= 'domain = ' . $this->connectionDomain . "\n";
             }
             file_put_contents($tmpCred, $creds);
             chmod($tmpCred, 0600);
 
-            $unc = '//' . $this->connectionHost . '/' . $shareName;
-            $cmd = 'smbclient ' . escapeshellarg($unc)
-                 . ' -A ' . escapeshellarg($tmpCred)
-                 . ' -c dskattr 2>/dev/null';
+            $smbclient = is_executable('/usr/bin/smbclient') ? '/usr/bin/smbclient' : 'smbclient';
+            $unc       = '//' . $this->connectionHost . '/' . $shareName;
+            $cmd       = $smbclient . ' ' . escapeshellarg($unc)
+                       . ' -A ' . escapeshellarg($tmpCred)
+                       . ' -c dskattr 2>/dev/null';
 
             $output = [];
             exec($cmd, $output);
+            $this->logger->debug('getDiskInfo raw output', ['share' => $shareName, 'lines' => $output]);
         } finally {
             @unlink($tmpCred);
         }
