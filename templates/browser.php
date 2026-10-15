@@ -1441,13 +1441,13 @@ function fileBrowser() {
                     }),
                 });
                 const data = await res.json();
-                if (data.success) {
+                if (data.ok) {
                     this.showAddServerModal  = false;
                     this.addServerHost        = '';
                     this.addServerDisplayName = '';
                     this.addServerDomain      = '';
                     await this.loadShares();
-                } else if (data.error === 'already_exists') {
+                } else if (data.error === 'server_already_added') {
                     this.addServerError = i18n.serverAlreadyAdded;
                 } else if (data.error === 'connection_failed') {
                     this.addServerError = i18n.serverConnectFailed;
@@ -1474,7 +1474,7 @@ function fileBrowser() {
                     method: 'DELETE',
                 });
                 const data = await res.json();
-                if (data.success) {
+                if (data.ok) {
                     if (this.servers.find(s => s.id === serverId && s.host === this.currentServer)) {
                         this.currentShare  = null;
                         this.currentServer = null;
@@ -1497,7 +1497,7 @@ function fileBrowser() {
                     body:    JSON.stringify({ username: srv._credUser, password: srv._credPass }),
                 });
                 const data = await res.json();
-                if (data.success) {
+                if (data.ok) {
                     srv._credUser = '';
                     srv._credPass = '';
                     await this.loadShares();
