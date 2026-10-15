@@ -292,7 +292,7 @@
                 <?= htmlspecialchars($t->t('dialog.delete.title'), ENT_QUOTES) ?>
             </h2>
             <p class="text-sm text-gray-600 mb-5"
-               x-text="'<?= htmlspecialchars(str_replace("'", "\\'", $t->t('dialog.delete.message', ['name' => ''])), ENT_QUOTES) ?>'.replace(':name', deleteTarget?.name ?? '')">
+               x-text="deleteMessage.replace(':name', deleteTarget?.name ?? '')">
             </p>
             <div class="flex justify-end gap-2">
                 <button @click="showDeleteDialog = false"
@@ -358,6 +358,7 @@ function fileBrowser() {
 
         showDeleteDialog: false,
         deleteTarget: null,
+        deleteMessage: '<?= addcslashes($t->t('dialog.delete.message'), "\\'") ?>',
 
         showMkdirDialog: false,
         mkdirValue: '',
