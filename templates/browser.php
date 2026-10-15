@@ -831,6 +831,11 @@ function fileBrowser() {
 
         async init() {
             await this.loadShares();
+            window.addEventListener('beforeunload', (e) => {
+                if (this.uploadWorkerRunning) {
+                    e.preventDefault();
+                }
+            });
         },
 
         async loadShares() {
