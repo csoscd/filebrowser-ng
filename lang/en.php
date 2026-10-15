@@ -67,6 +67,17 @@ return [
     'nav.logout'                  => 'Logout',
     'nav.logged_in_as'            => 'Signed in as :user',
 
+    // Folder picker dialog
+    'dialog.picker.title'     => 'Move / Copy',
+    'dialog.picker.select_hint' => 'Navigate to the destination folder, then choose an action.',
+    'dialog.picker.current'   => 'Destination:',
+    'dialog.picker.empty'     => 'No subfolders',
+    'dialog.picker.move_here' => 'Move here',
+    'dialog.picker.copy_here' => 'Copy here',
+    'dialog.picker.cancel'    => 'Cancel',
+    'dialog.picker.root'      => 'Root',
+    'dialog.picker.executing' => 'Working…',
+
     // JS error messages
     'js.error.load_shares'        => 'Failed to load shares',
     'js.error.load_files'         => 'Failed to load files',
@@ -77,4 +88,5 @@ return [
     'js.error.copy'               => 'Copy failed',
     'js.error.mkdir'              => 'Create folder failed',
     'js.error.delete_partial'     => 'Failed to delete: :files',
+    'js.error.operation_partial'  => 'Operation failed for: :files',
 ];

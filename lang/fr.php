@@ -67,6 +67,17 @@ return [
     'nav.logout'                  => 'Déconnexion',
     'nav.logged_in_as'            => 'Connecté en tant que :user',
 
+    // Boîte de dialogue de sélection de dossier
+    'dialog.picker.title'     => 'Déplacer / Copier',
+    'dialog.picker.select_hint' => 'Naviguez vers le dossier cible, puis choisissez une action.',
+    'dialog.picker.current'   => 'Destination :',
+    'dialog.picker.empty'     => 'Aucun sous-dossier',
+    'dialog.picker.move_here' => 'Déplacer ici',
+    'dialog.picker.copy_here' => 'Copier ici',
+    'dialog.picker.cancel'    => 'Annuler',
+    'dialog.picker.root'      => 'Racine',
+    'dialog.picker.executing' => 'En cours…',
+
     // JS error messages
     'js.error.load_shares'        => 'Impossible de charger les partages',
     'js.error.load_files'         => 'Impossible de charger les fichiers',
@@ -77,4 +88,5 @@ return [
     'js.error.copy'               => 'Échec de la copie',
     'js.error.mkdir'              => 'Impossible de créer le dossier',
     'js.error.delete_partial'     => 'Échec de la suppression : :files',
+    'js.error.operation_partial'  => 'Opération échouée pour : :files',
 ];

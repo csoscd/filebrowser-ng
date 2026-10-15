@@ -145,12 +145,40 @@ class SmbProvider implements StorageProviderInterface
 
     public function copy(string $share, string $sourcePath, string $destPath): void
     {
-        $stream = $this->getFile($share, $sourcePath);
-        try {
-            $this->putFile($share, $destPath, $stream);
-        } finally {
-            if (is_resource($stream)) {
-                fclose($stream);
+        $smbShare = $this->getShare($share);
+        $this->copyRecursive($smbShare, $sourcePath, $destPath);
+    }
+
+    private function copyRecursive(IShare $share, string $src, string $dest): void
+    {
+        $srcSmb  = '/' . ltrim($src,  '/');
+        $destSmb = '/' . ltrim($dest, '/');
+
+        $info = $share->stat($srcSmb);
+        if ($info->isDirectory()) {
+            $share->mkdir($destSmb);
+            foreach ($share->dir($srcSmb) as $item) {
+                if (in_array($item->getName(), ['.', '..'], true)) {
+                    continue;
+                }
+                $this->copyRecursive(
+                    $share,
+                    ltrim($src,  '/') . '/' . $item->getName(),
+                    ltrim($dest, '/') . '/' . $item->getName(),
+                );
+            }
+        } else {
+            $tmpFile = tempnam(sys_get_temp_dir(), 'fbng_copy_');
+            if ($tmpFile === false) {
+                throw new \RuntimeException('Failed to create temp file');
+            }
+            try {
+                $share->get($srcSmb, $tmpFile);
+                $share->put($tmpFile, $destSmb);
+            } finally {
+                if (file_exists($tmpFile)) {
+                    unlink($tmpFile);
+                }
             }
         }
     }

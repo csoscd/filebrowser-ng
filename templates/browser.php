@@ -184,17 +184,15 @@
                                 </button>
                             </template>
 
-                            <!-- Move/Copy (single item) -->
-                            <template x-if="singleSelected">
-                                <button @click="startMoveCopy(singleSelected)"
-                                        class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition">
-                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                              d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
-                                    </svg>
-                                    <?= htmlspecialchars($t->t('browser.move_copy'), ENT_QUOTES) ?>
-                                </button>
-                            </template>
+                            <!-- Move/Copy (all selections) -->
+                            <button @click="openPicker()"
+                                    class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                          d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
+                                </svg>
+                                <?= htmlspecialchars($t->t('browser.move_copy'), ENT_QUOTES) ?>
+                            </button>
 
                             <!-- Rename (single item) -->
                             <template x-if="singleSelected">
@@ -403,42 +401,109 @@
             </div>
         </div>
     </div>
-    <!-- ── Modal: Move / Copy ──────────────────────────────────────────────── -->
-    <div x-show="showMoveCopyDialog" x-cloak
+    <!-- ── Modal: Folder Picker (Move / Copy) ──────────────────────────────── -->
+    <div x-show="showPickerDialog" x-cloak
          class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4"
-         @keydown.escape.window="showMoveCopyDialog = false">
-        <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6" @click.stop>
-            <h2 class="text-lg font-semibold mb-1">
-                <?= htmlspecialchars($t->t('dialog.movecopy.title'), ENT_QUOTES) ?>
-            </h2>
-            <p class="text-sm text-gray-500 mb-4 truncate" x-text="moveCopyTarget?.name ?? ''"></p>
-            <label class="block text-sm font-medium text-gray-700 mb-1">
-                <?= htmlspecialchars($t->t('dialog.movecopy.label'), ENT_QUOTES) ?>
-            </label>
-            <input type="text" x-model="moveCopyDestDir"
-                   x-ref="moveCopyInput"
-                   placeholder="<?= htmlspecialchars($t->t('browser.shares'), ENT_QUOTES) ?> root"
-                   class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm
-                          focus:outline-none focus:ring-2 focus:ring-blue-500 mb-2">
-            <p class="text-xs text-gray-400 mb-5"
-               x-text="moveCopyTarget?.type === 'dir'
-                   ? '<?= addcslashes($t->t('dialog.movecopy.hint_dir'), "\\'") ?>'
-                   : '<?= addcslashes($t->t('dialog.movecopy.hint'), "\\'") ?>'">
-            </p>
-            <div class="flex justify-end gap-2">
-                <button @click="showMoveCopyDialog = false"
-                        class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition">
-                    <?= htmlspecialchars($t->t('dialog.movecopy.cancel'), ENT_QUOTES) ?>
+         @keydown.escape.window="!pickerExecuting && (showPickerDialog = false)">
+        <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm flex flex-col overflow-hidden" style="max-height:80vh" @click.stop>
+            <!-- Header -->
+            <div class="px-5 pt-5 pb-3 border-b border-gray-100 flex items-center justify-between flex-shrink-0">
+                <h2 class="text-lg font-semibold text-gray-900">
+                    <?= htmlspecialchars($t->t('dialog.picker.title'), ENT_QUOTES) ?>
+                </h2>
+                <button x-show="!pickerExecuting" @click="showPickerDialog = false"
+                        class="text-gray-400 hover:text-gray-600 transition">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
                 </button>
-                <button @click="confirmCopy()"
-                        x-show="moveCopyTarget?.type !== 'dir'"
-                        class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition">
-                    <?= htmlspecialchars($t->t('dialog.movecopy.copy'), ENT_QUOTES) ?>
-                </button>
-                <button @click="confirmMove()"
-                        class="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition">
-                    <?= htmlspecialchars($t->t('dialog.movecopy.move'), ENT_QUOTES) ?>
-                </button>
+            </div>
+
+            <!-- Folder browser (shown while not executing) -->
+            <div x-show="!pickerExecuting" class="flex flex-col flex-1 overflow-hidden min-h-0">
+                <!-- Breadcrumb -->
+                <div class="px-4 py-2 flex items-center gap-1 text-sm border-b border-gray-100 bg-gray-50 flex-wrap flex-shrink-0">
+                    <button @click="pickerNavigate('')"
+                            class="font-medium text-blue-600 hover:text-blue-800 transition">
+                        <?= htmlspecialchars($t->t('dialog.picker.root'), ENT_QUOTES) ?>
+                    </button>
+                    <template x-for="(crumb, i) in pickerBreadcrumbs" :key="i">
+                        <span class="flex items-center gap-1">
+                            <svg class="w-3 h-3 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                            </svg>
+                            <button @click="pickerNavigate(crumb.path)"
+                                    class="text-blue-600 hover:text-blue-800 transition truncate max-w-[8rem]"
+                                    x-text="crumb.name"></button>
+                        </span>
+                    </template>
+                </div>
+
+                <!-- Folder list -->
+                <div class="flex-1 overflow-y-auto">
+                    <template x-if="pickerLoading">
+                        <div class="px-4 py-4 text-sm text-gray-400">
+                            <?= htmlspecialchars($t->t('browser.loading'), ENT_QUOTES) ?>
+                        </div>
+                    </template>
+                    <template x-if="!pickerLoading && pickerFolders.length === 0">
+                        <div class="px-4 py-4 text-sm text-gray-400 italic">
+                            <?= htmlspecialchars($t->t('dialog.picker.empty'), ENT_QUOTES) ?>
+                        </div>
+                    </template>
+                    <template x-for="folder in pickerFolders" :key="folder.path">
+                        <button @click="pickerNavigate(folder.path)"
+                                class="w-full text-left flex items-center gap-2.5 px-4 py-2.5 hover:bg-blue-50 text-sm text-gray-700 transition">
+                            <svg class="w-4 h-4 text-yellow-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                <path d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z"/>
+                            </svg>
+                            <span x-text="folder.name" class="truncate flex-1"></span>
+                            <svg class="w-3.5 h-3.5 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                            </svg>
+                        </button>
+                    </template>
+                </div>
+
+                <!-- Current destination -->
+                <div class="px-4 py-2.5 border-t border-gray-100 bg-gray-50 text-xs text-gray-500 flex-shrink-0">
+                    <?= htmlspecialchars($t->t('dialog.picker.current'), ENT_QUOTES) ?>
+                    <span class="font-medium text-gray-700 ml-1"
+                          x-text="currentShare + (pickerPath !== '' ? '/' + pickerPath : '')"></span>
+                </div>
+
+                <!-- Hint -->
+                <p class="px-4 pb-2 text-xs text-gray-400">
+                    <?= htmlspecialchars($t->t('dialog.picker.select_hint'), ENT_QUOTES) ?>
+                </p>
+
+                <!-- Action buttons -->
+                <div class="px-5 py-4 border-t border-gray-100 flex gap-2 justify-end flex-shrink-0">
+                    <button @click="showPickerDialog = false"
+                            class="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-800 transition">
+                        <?= htmlspecialchars($t->t('dialog.picker.cancel'), ENT_QUOTES) ?>
+                    </button>
+                    <button @click="executeFromPicker('copy')"
+                            class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition">
+                        <?= htmlspecialchars($t->t('dialog.picker.copy_here'), ENT_QUOTES) ?>
+                    </button>
+                    <button @click="executeFromPicker('move')"
+                            class="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition">
+                        <?= htmlspecialchars($t->t('dialog.picker.move_here'), ENT_QUOTES) ?>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Progress (shown while executing) -->
+            <div x-show="pickerExecuting" class="flex flex-col items-center justify-center py-12 px-6 gap-4">
+                <svg class="animate-spin w-8 h-8 text-blue-600" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                    <path class="opacity-75" fill="currentColor"
+                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+                </svg>
+                <p class="text-sm text-gray-600 text-center font-medium"
+                   x-text="'<?= addcslashes($t->t('dialog.picker.executing'), "\\'") ?>'"></p>
+                <p class="text-xs text-gray-400 text-center truncate max-w-full" x-text="pickerExecuteStatus"></p>
             </div>
         </div>
     </div>
@@ -454,7 +519,8 @@ const i18n = {
     errorMove:          '<?= addcslashes($t->t('js.error.move'),           "\\'") ?>',
     errorCopy:          '<?= addcslashes($t->t('js.error.copy'),           "\\'") ?>',
     errorMkdir:         '<?= addcslashes($t->t('js.error.mkdir'),          "\\'") ?>',
-    errorDeletePartial: '<?= addcslashes($t->t('js.error.delete_partial'), "\\'") ?>',
+    errorDeletePartial:    '<?= addcslashes($t->t('js.error.delete_partial'),    "\\'") ?>',
+    errorOperationPartial: '<?= addcslashes($t->t('js.error.operation_partial'), "\\'") ?>',
     uploadSuccess:      '<?= addcslashes($t->t('upload.success'),          "\\'") ?>',
     uploadFailed:       '<?= addcslashes($t->t('upload.failed'),           "\\'") ?>',
 };
@@ -494,9 +560,12 @@ function fileBrowser() {
         showMkdirDialog: false,
         mkdirValue: '',
 
-        showMoveCopyDialog: false,
-        moveCopyTarget: null,
-        moveCopyDestDir: '',
+        showPickerDialog: false,
+        pickerPath: '',
+        pickerFolders: [],
+        pickerLoading: false,
+        pickerExecuting: false,
+        pickerExecuteStatus: '',
 
         get sortedFiles() {
             return [...this.files].sort((a, b) => {
@@ -524,6 +593,15 @@ function fileBrowser() {
         },
         get selectionIsAllFiles() {
             return this.selectedFiles.length > 0 && this.selectedFiles.every(f => f.type !== 'dir');
+        },
+
+        get pickerBreadcrumbs() {
+            if (!this.pickerPath) return [];
+            const parts = this.pickerPath.split('/').filter(Boolean);
+            return parts.map((name, i) => ({
+                name,
+                path: parts.slice(0, i + 1).join('/'),
+            }));
         },
 
         get breadcrumbs() {
@@ -705,59 +783,69 @@ function fileBrowser() {
             }
         },
 
-        startMoveCopy(file) {
-            this.moveCopyTarget  = file;
-            this.moveCopyDestDir = this.currentPath;
-            this.showMoveCopyDialog = true;
-            this.$nextTick(() => this.$refs.moveCopyInput?.focus());
+        async openPicker() {
+            this.pickerPath          = this.currentPath;
+            this.pickerExecuting     = false;
+            this.pickerExecuteStatus = '';
+            this.showPickerDialog    = true;
+            await this.loadPickerFolders();
         },
 
-        async confirmMove() {
-            if (!this.moveCopyTarget) return;
-            this.showMoveCopyDialog = false;
+        async loadPickerFolders() {
+            this.pickerLoading = true;
             try {
-                const res = await fetch('/file/move', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        share:    this.currentShare,
-                        old_path: this.moveCopyTarget.path,
-                        dest_dir: this.moveCopyDestDir.trim(),
-                    }),
-                });
+                const res  = await fetch('/api/files?share=' + encodeURIComponent(this.currentShare)
+                                       + '&path='  + encodeURIComponent(this.pickerPath));
                 const data = await res.json();
-                if (data.success) {
-                    await this.loadFiles();
-                } else {
-                    this.showFlash(data.error ?? i18n.errorMove, 'error');
-                }
+                this.pickerFolders = (data.files ?? []).filter(f => f.type === 'dir');
             } catch (e) {
-                this.showFlash(i18n.errorMove, 'error');
+                this.pickerFolders = [];
+            } finally {
+                this.pickerLoading = false;
             }
         },
 
-        async confirmCopy() {
-            if (!this.moveCopyTarget) return;
-            this.showMoveCopyDialog = false;
-            try {
-                const res = await fetch('/file/copy', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        share:    this.currentShare,
-                        src_path: this.moveCopyTarget.path,
-                        dest_dir: this.moveCopyDestDir.trim(),
-                    }),
-                });
-                const data = await res.json();
-                if (data.success) {
-                    await this.loadFiles();
-                } else {
-                    this.showFlash(data.error ?? i18n.errorCopy, 'error');
+        async pickerNavigate(path) {
+            this.pickerPath = path;
+            await this.loadPickerFolders();
+        },
+
+        async executeFromPicker(operation) {
+            this.pickerExecuting = true;
+            const items    = [...this.selectedFiles];
+            const destDir  = this.pickerPath;
+            const endpoint = operation === 'move' ? '/file/move' : '/file/copy';
+            const failed   = [];
+
+            for (let i = 0; i < items.length; i++) {
+                const item = items[i];
+                this.pickerExecuteStatus = items.length > 1
+                    ? item.name + ' (' + (i + 1) + '/' + items.length + ')'
+                    : item.name;
+                try {
+                    const payload = operation === 'move'
+                        ? { share: this.currentShare, old_path: item.path, dest_dir: destDir }
+                        : { share: this.currentShare, src_path: item.path, dest_dir: destDir };
+                    const res  = await fetch(endpoint, {
+                        method:  'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body:    JSON.stringify(payload),
+                    });
+                    const data = await res.json();
+                    if (!data.success) failed.push(item.name);
+                } catch (e) {
+                    failed.push(item.name);
                 }
-            } catch (e) {
-                this.showFlash(i18n.errorCopy, 'error');
             }
+
+            this.showPickerDialog    = false;
+            this.pickerExecuting     = false;
+            this.pickerExecuteStatus = '';
+
+            if (failed.length > 0) {
+                this.showFlash(i18n.errorOperationPartial.replace(':files', failed.join(', ')), 'error');
+            }
+            await this.loadFiles();
         },
 
         startRename(file) {

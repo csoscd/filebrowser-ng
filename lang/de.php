@@ -67,6 +67,17 @@ return [
     'nav.logout'                  => 'Abmelden',
     'nav.logged_in_as'            => 'Angemeldet als :user',
 
+    // Ordner-Picker-Dialog
+    'dialog.picker.title'     => 'Verschieben / Kopieren',
+    'dialog.picker.select_hint' => 'Zielordner navigieren, dann Aktion wählen.',
+    'dialog.picker.current'   => 'Ziel:',
+    'dialog.picker.empty'     => 'Keine Unterordner',
+    'dialog.picker.move_here' => 'Hierhin verschieben',
+    'dialog.picker.copy_here' => 'Hierhin kopieren',
+    'dialog.picker.cancel'    => 'Abbrechen',
+    'dialog.picker.root'      => 'Wurzel',
+    'dialog.picker.executing' => 'Wird ausgeführt…',
+
     // JS error messages
     'js.error.load_shares'        => 'Freigaben konnten nicht geladen werden',
     'js.error.load_files'         => 'Dateien konnten nicht geladen werden',
@@ -77,4 +88,5 @@ return [
     'js.error.copy'               => 'Kopieren fehlgeschlagen',
     'js.error.mkdir'              => 'Ordner konnte nicht erstellt werden',
     'js.error.delete_partial'     => 'Löschen fehlgeschlagen: :files',
+    'js.error.operation_partial'  => 'Vorgang fehlgeschlagen für: :files',
 ];
