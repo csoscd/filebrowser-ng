@@ -85,61 +85,46 @@ class UploadController
             Response::json(['error' => 'invalid chunk parameters'], 400);
         }
 
-        // Each upload gets a single growing temp file – no per-chunk files, no assembly step.
-        $tmpDir = sys_get_temp_dir()
-                . '/fbng_' . preg_replace('/[^a-zA-Z0-9]/', '', session_id())
-                . '_' . md5($share . '/' . ltrim($path, '/') . '/' . $filename);
+        $this->connectSmb();
 
-        if (!is_dir($tmpDir) && !mkdir($tmpDir, 0700, true)) {
-            Response::json(['error' => 'cannot create temp dir'], 500);
+        $targetPath = ltrim($path . '/' . $filename, '/');
+
+        try {
+            // Stream chunk directly to the SMB share – no local temp file needed.
+            // Chunk 0 → write (creates/overwrites), chunks 1..N → append.
+            $out = $this->provider->openFileStream($share, $targetPath, $chunkIndex > 0);
+            $in  = fopen($chunkFile['tmp_name'], 'rb');
+            stream_copy_to_stream($in, $out);
+            fclose($in);
+            fclose($out);
+        } catch (\Throwable $e) {
+            $this->logger->error('Chunk stream failed', [
+                'file'  => $filename,
+                'chunk' => $chunkIndex,
+                'error' => $e->getMessage(),
+                'class' => get_class($e),
+            ]);
+            // Try to remove the partial file so a retry can start clean.
+            try {
+                $this->provider->delete($share, $targetPath);
+            } catch (\Throwable) {
+                // ignore cleanup failure
+            }
+            Response::json(['error' => $e->getMessage()], 500);
         }
 
-        $assembledPath = $tmpDir . '/upload';
-
-        // Append this chunk directly to the assembled file
-        $out = fopen($assembledPath, $chunkIndex === 0 ? 'wb' : 'ab');
-        if ($out === false) {
-            Response::json(['error' => 'cannot write temp file'], 500);
-        }
-        $in = fopen($chunkFile['tmp_name'], 'rb');
-        stream_copy_to_stream($in, $out);
-        fclose($in);
-        fclose($out);
-
-        // Not the last chunk – acknowledge and wait for next
         if ($chunkIndex < $chunkTotal - 1) {
             Response::json(['ok' => true, 'chunk' => $chunkIndex]);
         }
 
-        // Last chunk received – upload assembled file to SMB
-        $this->connectSmb();
+        $this->logger->info('Chunked upload complete', [
+            'user'   => $this->session->getUsername(),
+            'share'  => $share,
+            'path'   => $targetPath,
+            'chunks' => $chunkTotal,
+        ]);
 
-        try {
-            $targetPath = ltrim($path . '/' . $filename, '/');
-            $this->provider->putFile($share, $targetPath, $assembledPath);
-
-            $this->logger->info('Chunked upload complete', [
-                'user'   => $this->session->getUsername(),
-                'share'  => $share,
-                'path'   => $targetPath,
-                'chunks' => $chunkTotal,
-            ]);
-
-            Response::json(['done' => true]);
-        } catch (\Throwable $e) {
-            $this->logger->error('Chunked upload failed', [
-                'file'  => $filename,
-                'error' => $e->getMessage(),
-            ]);
-            Response::json(['error' => $e->getMessage()], 500);
-        } finally {
-            if (file_exists($assembledPath)) {
-                unlink($assembledPath);
-            }
-            if (is_dir($tmpDir)) {
-                @rmdir($tmpDir);
-            }
-        }
+        Response::json(['done' => true]);
     }
 
     /** @return array<array<string, mixed>> */

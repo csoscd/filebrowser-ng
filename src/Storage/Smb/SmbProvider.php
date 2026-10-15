@@ -73,65 +73,39 @@ class SmbProvider implements StorageProviderInterface
             return null;
         }
 
-        $tmpCred = tempnam(sys_get_temp_dir(), 'fbng_cred_');
-        if ($tmpCred === false) {
+        // Native path: smbclient PHP extension (libsmbclient-php) – no exec() needed
+        if (function_exists('smbclient_statvfs')) {
+            return $this->getDiskInfoNative($shareName);
+        }
+
+        // Fallback: smbclient binary via exec() (dskattr removed in smbclient 4.22)
+        $this->logger->warning('getDiskInfo: smbclient PHP extension not loaded, disk info unavailable');
+        return null;
+    }
+
+    private function getDiskInfoNative(string $shareName): ?array
+    {
+        $state = smbclient_state_new();
+        if ($state === false) {
             return null;
         }
-        try {
-            // smbclient -A requires "key = value" format with spaces
-            $creds = 'username = ' . $this->connectionUsername . "\n"
-                   . 'password = ' . $this->connectionPassword . "\n";
-            if ($this->connectionDomain !== '') {
-                $creds .= 'domain = ' . $this->connectionDomain . "\n";
-            }
-            file_put_contents($tmpCred, $creds);
-            chmod($tmpCred, 0600);
-
-            $smbclient = is_executable('/usr/bin/smbclient') ? '/usr/bin/smbclient' : 'smbclient';
-            $unc       = '//' . $this->connectionHost . '/' . $shareName;
-            // Redirect stderr to stdout so we capture error messages for logging
-            $cmd       = $smbclient . ' ' . escapeshellarg($unc)
-                       . ' -A ' . escapeshellarg($tmpCred)
-                       . ' -c dskattr 2>&1';
-
-            $output = [];
-            $retCode = 0;
-            exec($cmd, $output, $retCode);
-            if ($retCode !== 0) {
-                $this->logger->warning('getDiskInfo smbclient failed', [
-                    'share'  => $shareName,
-                    'code'   => $retCode,
-                    'output' => implode(' | ', $output),
-                ]);
-            } else {
-                $this->logger->debug('getDiskInfo raw output', ['share' => $shareName, 'lines' => $output]);
-            }
-        } finally {
-            @unlink($tmpCred);
+        $domain = $this->connectionDomain !== '' ? $this->connectionDomain : null;
+        if (!smbclient_state_init($state, $domain, $this->connectionUsername, $this->connectionPassword)) {
+            smbclient_state_free($state);
+            return null;
         }
+        $uri  = 'smb://' . $this->connectionHost . '/' . $shareName;
+        $info = @smbclient_statvfs($state, $uri);
+        smbclient_state_free($state);
 
-        // Parse: "N blocks of size M. X blocks available"
-        foreach ($output as $line) {
-            if (preg_match(
-                '/(\d[\d,]*)\s+blocks\s+of\s+size\s+(\d[\d,]*)[\.\s]+(\d[\d,]*)\s+blocks\s+available/i',
-                $line, $m
-            )) {
-                $blockSize   = (int) str_replace(',', '', $m[2]);
-                $totalBlocks = (int) str_replace(',', '', $m[1]);
-                $freeBlocks  = (int) str_replace(',', '', $m[3]);
-                return [
-                    'total' => $totalBlocks * $blockSize,
-                    'free'  => $freeBlocks  * $blockSize,
-                ];
-            }
+        if (!is_array($info) || empty($info['frsize'])) {
+            $this->logger->warning('getDiskInfo: statvfs returned no data', ['share' => $shareName]);
+            return null;
         }
-        if ($output !== []) {
-            $this->logger->warning('getDiskInfo: no match in output', [
-                'share'  => $shareName,
-                'output' => implode(' | ', $output),
-            ]);
-        }
-        return null;
+        return [
+            'total' => (int) $info['blocks'] * (int) $info['frsize'],
+            'free'  => (int) $info['bavail'] * (int) $info['frsize'],
+        ];
     }
 
     public function listDirectory(string $share, string $path = ''): array
@@ -209,6 +183,15 @@ class SmbProvider implements StorageProviderInterface
                 unlink($tmpFile);
             }
         }
+    }
+
+    public function openFileStream(string $share, string $path, bool $append = false): mixed
+    {
+        $smbShare   = $this->getShare($share);
+        $remotePath = '/' . ltrim($path, '/');
+        return $append
+            ? $smbShare->append($remotePath)
+            : $smbShare->write($remotePath);
     }
 
     public function rename(string $share, string $oldPath, string $newPath): void
