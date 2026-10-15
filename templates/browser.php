@@ -1257,6 +1257,7 @@ function fileBrowser() {
                 if (this.pickerShare === '') {
                     const res  = await fetch('/api/shares');
                     const data = await res.json();
+                    console.log('[picker] /api/shares response:', JSON.stringify(data).substring(0, 500));
                     // Build flat share list from all servers for the picker
                     const allShares = [];
                     for (const srv of (data.servers ?? [])) {
@@ -1264,6 +1265,7 @@ function fileBrowser() {
                             allShares.push({ ...s, _server: srv.host });
                         }
                     }
+                    console.log('[picker] allShares built:', allShares.length, allShares.map(s => s.name));
                     this.pickerShares  = allShares;
                     this.pickerFolders = [];
                     this._pickerServerMap = {};
@@ -1278,6 +1280,7 @@ function fileBrowser() {
                     this.pickerShares  = [];
                 }
             } catch (e) {
+                console.error('[picker] loadPickerContent error:', e);
                 this.pickerShares  = [];
                 this.pickerFolders = [];
             } finally {
