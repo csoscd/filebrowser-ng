@@ -48,6 +48,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         smbclient \
     && rm -rf /var/lib/apt/lists/*
 
+# The base image's PHP-FPM pool config has no user/group set.
+# Our entrypoint runs as root (for chown of bind-mounted volumes), so
+# the FPM master also starts as root. Set worker user/group and socket
+# ownership so nginx workers (nobody:nogroup) can connect.
+RUN printf '[www]\nuser = nobody\ngroup = nogroup\nlisten.owner = nobody\nlisten.group = nogroup\nlisten.mode = 0660\n' \
+    > /usr/local/etc/php-fpm.d/zz-user.conf
+
 # Composer vendor
 COPY --from=composer-build --chown=nobody:nogroup /build/vendor /var/www/libs/vendor
 
@@ -61,6 +68,7 @@ COPY --chown=nobody:nogroup public/       /var/www/html/public/
 RUN mkdir -p /var/www/conf /var/www/data /var/www/log \
     && chown -R nobody:nogroup /var/www/conf /var/www/data /var/www/log
 
+COPY docker/web/nginx-default.conf /etc/nginx/conf.d/default.conf
 COPY docker/web/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 

@@ -8,10 +8,19 @@ use FilebrowserNg\I18n\Translator;
 
 class TemplateEngine
 {
+    /** @var array<string, mixed> */
+    private array $globals = [];
+
     public function __construct(
         private readonly string $templateDir,
         private readonly Translator $translator,
     ) {}
+
+    /** @param array<string, mixed> $globals */
+    public function setGlobals(array $globals): void
+    {
+        $this->globals = $globals;
+    }
 
     public function render(string $template, array $vars = [], ?string $layout = 'layout'): string
     {
@@ -33,7 +42,7 @@ class TemplateEngine
         }
 
         $t = $this->translator;
-        extract($vars, EXTR_SKIP);
+        extract(array_merge($this->globals, $vars), EXTR_SKIP);
 
         ob_start();
         include $file;

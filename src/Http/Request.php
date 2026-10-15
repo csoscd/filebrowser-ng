@@ -19,7 +19,9 @@ class Request
         $uri = $_SERVER['REQUEST_URI'] ?? '/';
         $parts = explode('?', $uri, 2);
         $this->path = rtrim($parts[0], '/') ?: '/';
-        parse_str($parts[1] ?? '', $this->query);
+        $query = [];
+        parse_str($parts[1] ?? '', $query);
+        $this->query = $query;
         $this->body = $_POST;
         $this->files = $_FILES;
         $this->headers = $this->parseHeaders();

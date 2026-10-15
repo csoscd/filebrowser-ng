@@ -2,11 +2,23 @@
 
 declare(strict_types=1);
 
+// Suppress E_DEPRECATED from vendor libs (hassankhan/config v2.1 on PHP 8.4)
+// and never show errors in a browser (log them instead).
+error_reporting(E_ALL & ~E_DEPRECATED);
+ini_set('display_errors', '0');
+ini_set('log_errors', '1');
+
 $autoload = file_exists('/var/www/libs/vendor/autoload.php')
     ? '/var/www/libs/vendor/autoload.php'
     : dirname(__DIR__) . '/vendor/autoload.php';
 
-require_once $autoload;
+$loader = require_once $autoload;
+
+// When using the shared vendor mount (/var/www/libs/vendor), the generated
+// autoloader does not know where our src/ lives. Register it explicitly.
+if ($autoload === '/var/www/libs/vendor/autoload.php') {
+    $loader->addPsr4('FilebrowserNg\\', dirname(__DIR__) . '/src/');
+}
 
 use FilebrowserNg\Controller\AuthController;
 use FilebrowserNg\Controller\BrowserController;
@@ -62,6 +74,9 @@ $translator = new Translator(
     (string) $config->get('i18n.default_language', 'en')
 );
 $view = new TemplateEngine(dirname(__DIR__) . '/templates', $translator);
+$view->setGlobals([
+    'appVersion' => (string) (getenv('APP_VERSION') ?: 'dev'),
+]);
 
 // ── Storage ────────────────────────────────────────────────────────────────
 $provider = new SmbProvider($logger, (string) $config->get('smb.domain', ''));
