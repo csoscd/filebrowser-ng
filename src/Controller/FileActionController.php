@@ -115,45 +115,53 @@ class FileActionController
     public function move(Request $request): void
     {
         $this->requireAuth();
-        $data      = $request->jsonBody();
-        $share     = (string) ($data['share']      ?? '');
-        $oldPath   = urldecode((string) ($data['old_path']   ?? ''));
-        $destDir   = urldecode((string) ($data['dest_dir']   ?? ''));
-        $destShare = (string) ($data['dest_share'] ?? $share);
-        $server    = (string) ($data['server']     ?? '');
+        $data       = $request->jsonBody();
+        $share      = (string) ($data['share']       ?? '');
+        $oldPath    = urldecode((string) ($data['old_path']    ?? ''));
+        $destDir    = urldecode((string) ($data['dest_dir']    ?? ''));
+        $destShare  = (string) ($data['dest_share']  ?? $share);
+        $server     = (string) ($data['server']      ?? '');
+        $destServer = (string) ($data['dest_server'] ?? $server);
 
         if ($share === '' || $oldPath === '') {
             Response::json(['error' => 'share and old_path required'], 400);
         }
 
-        $newPath = ltrim(rtrim($destDir, '/') . '/' . basename($oldPath), '/');
+        $newPath     = ltrim(rtrim($destDir, '/') . '/' . basename($oldPath), '/');
+        $isCross     = $this->isCrossServer($server, $destServer);
+        $actualDest  = $destShare !== '' ? $destShare : $share;
 
         $this->connectSmb($server);
 
         try {
-            if ($destShare !== $share) {
-                // Cross-share move = copy + delete
+            if ($isCross) {
+                $this->crossServerTransfer($share, $oldPath, $actualDest, $newPath, $server, $destServer);
+                $this->connectSmb($server);
+                $this->provider->delete($share, $oldPath);
+            } elseif ($destShare !== '' && $destShare !== $share) {
                 $this->provider->copy($share, $oldPath, $newPath, $destShare);
                 $this->provider->delete($share, $oldPath);
             } else {
                 $this->provider->rename($share, $oldPath, $newPath);
             }
             $this->logger->info('Moved', [
-                'user'       => $this->session->getUsername(),
-                'from_share' => $share,
-                'from'       => $oldPath,
-                'to_share'   => $destShare,
-                'to'         => $newPath,
+                'user'        => $this->session->getUsername(),
+                'from_share'  => $share,
+                'from'        => $oldPath,
+                'to_share'    => $actualDest,
+                'to'          => $newPath,
+                'cross_server' => $isCross,
             ]);
             Response::json(['success' => true, 'new_path' => $newPath]);
         } catch (\Throwable $e) {
             $this->logger->error('Move failed', [
-                'share'      => $share,
-                'old_path'   => $oldPath,
-                'new_path'   => $newPath,
-                'dest_share' => $destShare,
-                'server'     => $server,
-                'error'      => $e->getMessage(),
+                'share'       => $share,
+                'old_path'    => $oldPath,
+                'new_path'    => $newPath,
+                'dest_share'  => $actualDest,
+                'server'      => $server,
+                'dest_server' => $destServer,
+                'error'       => $e->getMessage(),
             ]);
             Response::json(['error' => 'Move failed'], 500);
         }
@@ -162,42 +170,82 @@ class FileActionController
     public function copy(Request $request): void
     {
         $this->requireAuth();
-        $data      = $request->jsonBody();
-        $share     = (string) ($data['share']      ?? '');
-        $srcPath   = urldecode((string) ($data['src_path']   ?? ''));
-        $destDir   = urldecode((string) ($data['dest_dir']   ?? ''));
-        $destShare = (string) ($data['dest_share'] ?? $share);
-        $server    = (string) ($data['server']     ?? '');
+        $data       = $request->jsonBody();
+        $share      = (string) ($data['share']       ?? '');
+        $srcPath    = urldecode((string) ($data['src_path']    ?? ''));
+        $destDir    = urldecode((string) ($data['dest_dir']    ?? ''));
+        $destShare  = (string) ($data['dest_share']  ?? $share);
+        $server     = (string) ($data['server']      ?? '');
+        $destServer = (string) ($data['dest_server'] ?? $server);
 
         if ($share === '' || $srcPath === '') {
             Response::json(['error' => 'share and src_path required'], 400);
         }
 
-        $dstPath = ltrim(rtrim($destDir, '/') . '/' . basename($srcPath), '/');
+        $dstPath    = ltrim(rtrim($destDir, '/') . '/' . basename($srcPath), '/');
+        $isCross    = $this->isCrossServer($server, $destServer);
+        $actualDest = $destShare !== '' ? $destShare : $share;
 
         $this->connectSmb($server);
 
         try {
-            $this->provider->copy($share, $srcPath, $dstPath, $destShare);
+            if ($isCross) {
+                $this->crossServerTransfer($share, $srcPath, $actualDest, $dstPath, $server, $destServer);
+            } else {
+                $this->provider->copy($share, $srcPath, $dstPath, $actualDest);
+            }
             $this->logger->info('Copied', [
-                'user'       => $this->session->getUsername(),
-                'from_share' => $share,
-                'from'       => $srcPath,
-                'to_share'   => $destShare,
-                'to'         => $dstPath,
+                'user'         => $this->session->getUsername(),
+                'from_share'   => $share,
+                'from'         => $srcPath,
+                'to_share'     => $actualDest,
+                'to'           => $dstPath,
+                'cross_server' => $isCross,
             ]);
             Response::json(['success' => true, 'new_path' => $dstPath]);
         } catch (\Throwable $e) {
             $this->logger->error('Copy failed', [
-                'share'      => $share,
-                'src_path'   => $srcPath,
-                'dst_path'   => $dstPath,
-                'dest_share' => $destShare,
-                'server'     => $server,
-                'error'      => $e->getMessage(),
+                'share'        => $share,
+                'src_path'     => $srcPath,
+                'dst_path'     => $dstPath,
+                'dest_share'   => $actualDest,
+                'server'       => $server,
+                'dest_server'  => $destServer,
+                'error'        => $e->getMessage(),
             ]);
             Response::json(['error' => 'Copy failed'], 500);
         }
+    }
+
+    /**
+     * Download from source server to a local temp file, then upload to destination server.
+     * Uses stream_get_meta_data() to reuse the temp file path from getFile(),
+     * avoiding a second temp copy.
+     */
+    private function crossServerTransfer(
+        string $srcShare, string $srcPath,
+        string $dstShare, string $dstPath,
+        string $srcServer, string $dstServer,
+    ): void {
+        // Download from source
+        $this->connectSmb($srcServer);
+        $stream  = $this->provider->getFile($srcShare, $srcPath);
+        $tmpPath = stream_get_meta_data($stream)['uri'];
+
+        // Upload to destination (reuse the temp file path directly)
+        $this->connectSmb($dstServer);
+        $this->provider->putFile($dstShare, $dstPath, $tmpPath);
+
+        fclose($stream);
+    }
+
+    /** Normalize empty host to default, then compare. */
+    private function isCrossServer(string $a, string $b): bool
+    {
+        $default = (string) $this->config->get('smb.server', '');
+        $a = $a === '' ? $default : $a;
+        $b = $b === '' ? $default : $b;
+        return $a !== $b;
     }
 
     private function requireAuth(): void
