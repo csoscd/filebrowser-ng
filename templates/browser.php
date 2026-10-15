@@ -691,8 +691,8 @@
                     <!-- Shares list -->
                     <template x-if="!pickerLoading && pickerShare === ''">
                         <div>
-                            <template x-for="s in pickerShares" :key="s.name">
-                                <button @click="pickerOpenShare(s.name)"
+                            <template x-for="s in pickerShares" :key="s._server + '::' + s.name">
+                                <button @click="pickerOpenShare(s.name, s._server)"
                                         class="w-full text-left flex items-center gap-2.5 px-4 py-2.5 hover:bg-blue-50 text-sm text-gray-700 transition">
                                     <svg class="w-4 h-4 text-blue-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -1257,7 +1257,6 @@ function fileBrowser() {
                 if (this.pickerShare === '') {
                     const res  = await fetch('/api/shares');
                     const data = await res.json();
-                    console.log('[picker] /api/shares response:', JSON.stringify(data).substring(0, 500));
                     // Build flat share list from all servers for the picker
                     const allShares = [];
                     for (const srv of (data.servers ?? [])) {
@@ -1265,7 +1264,6 @@ function fileBrowser() {
                             allShares.push({ ...s, _server: srv.host });
                         }
                     }
-                    console.log('[picker] allShares built:', allShares.length, allShares.map(s => s.name));
                     this.pickerShares  = allShares;
                     this.pickerFolders = [];
                     this._pickerServerMap = {};
@@ -1280,7 +1278,6 @@ function fileBrowser() {
                     this.pickerShares  = [];
                 }
             } catch (e) {
-                console.error('[picker] loadPickerContent error:', e);
                 this.pickerShares  = [];
                 this.pickerFolders = [];
             } finally {
@@ -1288,10 +1285,10 @@ function fileBrowser() {
             }
         },
 
-        async pickerOpenShare(name) {
+        async pickerOpenShare(name, server) {
             this.pickerShare = name;
             this.pickerPath  = '';
-            this._pickerServerHost = (this._pickerServerMap ?? {})[name] ?? this.currentServer ?? '';
+            this._pickerServerHost = server ?? (this._pickerServerMap ?? {})[name] ?? this.currentServer ?? '';
             await this.loadPickerContent();
         },
 
