@@ -19,6 +19,7 @@ return [
     'browser.new_folder'          => 'Neuer Ordner',
     'browser.upload'              => 'Hochladen',
     'browser.download'            => 'Herunterladen',
+    'browser.open_hint'           => 'Doppelklick zum Öffnen',
     'browser.rename'              => 'Umbenennen',
     'browser.delete'              => 'Löschen',
     'browser.loading'             => 'Wird geladen…',

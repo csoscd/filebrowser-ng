@@ -19,6 +19,7 @@ return [
     'browser.new_folder'          => 'New folder',
     'browser.upload'              => 'Upload',
     'browser.download'            => 'Download',
+    'browser.open_hint'           => 'Double-click to open',
     'browser.rename'              => 'Rename',
     'browser.delete'              => 'Delete',
     'browser.loading'             => 'Loading…',

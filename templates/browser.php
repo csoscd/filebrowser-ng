@@ -178,14 +178,20 @@
                             <table class="w-full text-sm">
                                 <thead class="bg-white border-b border-gray-200 sticky top-0">
                                     <tr>
-                                        <th class="text-left px-4 py-2.5 font-medium text-gray-600 w-full">
+                                        <th class="text-left px-4 py-2.5 font-medium text-gray-600 w-full cursor-pointer select-none hover:text-gray-900 transition-colors"
+                                            @click="setSort('name')">
                                             <?= htmlspecialchars($t->t('file.name'), ENT_QUOTES) ?>
+                                            <span x-show="sortColumn === 'name'" x-text="sortDir === 'asc' ? ' ↑' : ' ↓'" class="text-blue-500"></span>
                                         </th>
-                                        <th class="text-right px-4 py-2.5 font-medium text-gray-600 whitespace-nowrap hidden sm:table-cell">
+                                        <th class="text-right px-4 py-2.5 font-medium text-gray-600 whitespace-nowrap hidden sm:table-cell cursor-pointer select-none hover:text-gray-900 transition-colors"
+                                            @click="setSort('size')">
                                             <?= htmlspecialchars($t->t('file.size'), ENT_QUOTES) ?>
+                                            <span x-show="sortColumn === 'size'" x-text="sortDir === 'asc' ? ' ↑' : ' ↓'" class="text-blue-500"></span>
                                         </th>
-                                        <th class="text-right px-4 py-2.5 font-medium text-gray-600 whitespace-nowrap hidden md:table-cell">
+                                        <th class="text-right px-4 py-2.5 font-medium text-gray-600 whitespace-nowrap hidden md:table-cell cursor-pointer select-none hover:text-gray-900 transition-colors"
+                                            @click="setSort('modified')">
                                             <?= htmlspecialchars($t->t('file.modified'), ENT_QUOTES) ?>
+                                            <span x-show="sortColumn === 'modified'" x-text="sortDir === 'asc' ? ' ↑' : ' ↓'" class="text-blue-500"></span>
                                         </th>
                                         <th class="px-4 py-2.5 font-medium text-gray-600 text-right">
                                             <?= htmlspecialchars($t->t('file.actions'), ENT_QUOTES) ?>
@@ -193,12 +199,14 @@
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    <template x-for="file in files" :key="file.path">
+                                    <template x-for="file in sortedFiles" :key="file.path">
                                         <tr class="border-b border-gray-100 hover:bg-white transition group">
                                             <td class="px-4 py-2.5">
                                                 <button
                                                     @click="file.type === 'dir' ? navigate(file.path) : null"
-                                                    :class="file.type === 'dir' ? 'cursor-pointer hover:text-blue-700' : 'cursor-default'"
+                                                    @dblclick="file.type === 'dir' ? navigate(file.path) : openFile(file)"
+                                                    :class="file.type === 'dir' ? 'cursor-pointer hover:text-blue-700' : 'cursor-pointer hover:text-blue-700'"
+                                                    :title="file.type !== 'dir' ? '<?= htmlspecialchars($t->t('browser.open_hint'), ENT_QUOTES) ?>' : ''"
                                                     class="flex items-center gap-2.5 text-left w-full font-medium text-gray-800"
                                                 >
                                                     <!-- Folder icon -->
@@ -368,6 +376,9 @@ function fileBrowser() {
         flashType: 'success',
         flashTimer: null,
 
+        sortColumn: 'name',
+        sortDir: 'asc',
+
         showRenameDialog: false,
         renameTarget: null,
         renameValue: '',
@@ -378,6 +389,21 @@ function fileBrowser() {
 
         showMkdirDialog: false,
         mkdirValue: '',
+
+        get sortedFiles() {
+            return [...this.files].sort((a, b) => {
+                if (a.type !== b.type) return a.type === 'dir' ? -1 : 1;
+                let cmp = 0;
+                if (this.sortColumn === 'name') {
+                    cmp = a.name.localeCompare(b.name, undefined, { sensitivity: 'base', numeric: true });
+                } else if (this.sortColumn === 'size') {
+                    cmp = (a.size ?? 0) - (b.size ?? 0);
+                } else if (this.sortColumn === 'modified') {
+                    cmp = (a.modified ?? 0) - (b.modified ?? 0);
+                }
+                return this.sortDir === 'asc' ? cmp : -cmp;
+            });
+        },
 
         get breadcrumbs() {
             if (!this.currentPath) return [];
@@ -494,6 +520,21 @@ function fileBrowser() {
 
                 this.uploadProgress = Math.round((i + 1) / total * 100);
             }
+        },
+
+        setSort(column) {
+            if (this.sortColumn === column) {
+                this.sortDir = this.sortDir === 'asc' ? 'desc' : 'asc';
+            } else {
+                this.sortColumn = column;
+                this.sortDir    = 'asc';
+            }
+        },
+
+        openFile(file) {
+            const url = '/browser/download?share=' + encodeURIComponent(this.currentShare)
+                      + '&path=' + encodeURIComponent(file.path);
+            window.open(url, '_blank');
         },
 
         startRename(file) {
