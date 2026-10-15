@@ -49,6 +49,17 @@ class ServerRepository
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP
             )
         ");
+
+        // v0.3 migration: add server_id to user_shares if missing (existing databases).
+        $cols = array_column(
+            $this->db->query('PRAGMA table_info(user_shares)')->fetchAll(),
+            'name'
+        );
+        if (!in_array('server_id', $cols, true)) {
+            $this->db->exec(
+                'ALTER TABLE user_shares ADD COLUMN server_id INTEGER REFERENCES user_servers(id) ON DELETE CASCADE'
+            );
+        }
     }
 
     // ── User Servers ──────────────────────────────────────────────────────────
