@@ -143,6 +143,18 @@ class SmbProvider implements StorageProviderInterface
         );
     }
 
+    public function copy(string $share, string $sourcePath, string $destPath): void
+    {
+        $stream = $this->getFile($share, $sourcePath);
+        try {
+            $this->putFile($share, $destPath, $stream);
+        } finally {
+            if (is_resource($stream)) {
+                fclose($stream);
+            }
+        }
+    }
+
     public function delete(string $share, string $path): void
     {
         $smbShare = $this->getShare($share);

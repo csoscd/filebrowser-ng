@@ -109,6 +109,68 @@ class FileActionController
         }
     }
 
+    public function move(Request $request): void
+    {
+        $this->requireAuth();
+        $data    = $request->jsonBody();
+        $share   = (string) ($data['share']    ?? '');
+        $oldPath = (string) ($data['old_path'] ?? '');
+        $destDir = (string) ($data['dest_dir'] ?? '');
+
+        if ($share === '' || $oldPath === '') {
+            Response::json(['error' => 'share and old_path required'], 400);
+        }
+
+        $newPath = ltrim(rtrim($destDir, '/') . '/' . basename($oldPath), '/');
+
+        $this->connectSmb();
+
+        try {
+            $this->provider->rename($share, $oldPath, $newPath);
+            $this->logger->info('Moved', [
+                'user'  => $this->session->getUsername(),
+                'share' => $share,
+                'from'  => $oldPath,
+                'to'    => $newPath,
+            ]);
+            Response::json(['success' => true, 'new_path' => $newPath]);
+        } catch (\Throwable $e) {
+            $this->logger->error('Move failed', ['error' => $e->getMessage()]);
+            Response::json(['error' => 'Move failed'], 500);
+        }
+    }
+
+    public function copy(Request $request): void
+    {
+        $this->requireAuth();
+        $data    = $request->jsonBody();
+        $share   = (string) ($data['share']    ?? '');
+        $srcPath = (string) ($data['src_path'] ?? '');
+        $destDir = (string) ($data['dest_dir'] ?? '');
+
+        if ($share === '' || $srcPath === '') {
+            Response::json(['error' => 'share and src_path required'], 400);
+        }
+
+        $dstPath = ltrim(rtrim($destDir, '/') . '/' . basename($srcPath), '/');
+
+        $this->connectSmb();
+
+        try {
+            $this->provider->copy($share, $srcPath, $dstPath);
+            $this->logger->info('Copied', [
+                'user'  => $this->session->getUsername(),
+                'share' => $share,
+                'from'  => $srcPath,
+                'to'    => $dstPath,
+            ]);
+            Response::json(['success' => true, 'new_path' => $dstPath]);
+        } catch (\Throwable $e) {
+            $this->logger->error('Copy failed', ['error' => $e->getMessage()]);
+            Response::json(['error' => 'Copy failed'], 500);
+        }
+    }
+
     private function requireAuth(): void
     {
         if (!$this->session->isAuthenticated()) {

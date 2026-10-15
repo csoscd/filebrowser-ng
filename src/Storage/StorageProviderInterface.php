@@ -21,6 +21,8 @@ interface StorageProviderInterface
 
     public function rename(string $share, string $oldPath, string $newPath): void;
 
+    public function copy(string $share, string $sourcePath, string $destPath): void;
+
     public function delete(string $share, string $path): void;
 
     public function createDirectory(string $share, string $path): void;

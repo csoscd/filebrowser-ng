@@ -21,6 +21,7 @@ return [
     'browser.download'            => 'Download',
     'browser.open_hint'           => 'Double-click to open',
     'browser.rename'              => 'Rename',
+    'browser.move_copy'           => 'Move / Copy',
     'browser.delete'              => 'Delete',
     'browser.loading'             => 'Loading…',
     'browser.empty'               => 'This folder is empty.',
@@ -38,6 +39,13 @@ return [
     'upload.failed'               => 'Failed: :files',
 
     // Dialogs
+    'dialog.movecopy.title'        => 'Move / Copy',
+    'dialog.movecopy.label'        => 'Destination folder',
+    'dialog.movecopy.hint'         => 'The filename will be preserved.',
+    'dialog.movecopy.hint_dir'     => 'Folders can only be moved, not copied.',
+    'dialog.movecopy.move'         => 'Move',
+    'dialog.movecopy.copy'         => 'Copy',
+    'dialog.movecopy.cancel'       => 'Cancel',
     'dialog.rename.title'         => 'Rename',
     'dialog.rename.label'         => 'New name',
     'dialog.rename.confirm'       => 'Rename',

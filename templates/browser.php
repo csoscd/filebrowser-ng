@@ -242,6 +242,15 @@
                                                             </svg>
                                                         </a>
                                                     </template>
+                                                    <!-- Move/Copy -->
+                                                    <button @click="startMoveCopy(file)"
+                                                            class="p-1.5 rounded hover:bg-gray-100 text-gray-500 hover:text-gray-800 transition"
+                                                            title="<?= htmlspecialchars($t->t('browser.move_copy'), ENT_QUOTES) ?>">
+                                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                                  d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
+                                                        </svg>
+                                                    </button>
                                                     <!-- Rename -->
                                                     <button @click="startRename(file)"
                                                             class="p-1.5 rounded hover:bg-gray-100 text-gray-500 hover:text-gray-800 transition"
@@ -354,6 +363,45 @@
             </div>
         </div>
     </div>
+    <!-- ── Modal: Move / Copy ──────────────────────────────────────────────── -->
+    <div x-show="showMoveCopyDialog" x-cloak
+         class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4"
+         @keydown.escape.window="showMoveCopyDialog = false">
+        <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6" @click.stop>
+            <h2 class="text-lg font-semibold mb-1">
+                <?= htmlspecialchars($t->t('dialog.movecopy.title'), ENT_QUOTES) ?>
+            </h2>
+            <p class="text-sm text-gray-500 mb-4 truncate" x-text="moveCopyTarget?.name ?? ''"></p>
+            <label class="block text-sm font-medium text-gray-700 mb-1">
+                <?= htmlspecialchars($t->t('dialog.movecopy.label'), ENT_QUOTES) ?>
+            </label>
+            <input type="text" x-model="moveCopyDestDir"
+                   x-ref="moveCopyInput"
+                   placeholder="<?= htmlspecialchars($t->t('browser.shares'), ENT_QUOTES) ?> root"
+                   class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm
+                          focus:outline-none focus:ring-2 focus:ring-blue-500 mb-2">
+            <p class="text-xs text-gray-400 mb-5"
+               x-text="moveCopyTarget?.type === 'dir'
+                   ? '<?= addcslashes($t->t('dialog.movecopy.hint_dir'), "\\'") ?>'
+                   : '<?= addcslashes($t->t('dialog.movecopy.hint'), "\\'") ?>'">
+            </p>
+            <div class="flex justify-end gap-2">
+                <button @click="showMoveCopyDialog = false"
+                        class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition">
+                    <?= htmlspecialchars($t->t('dialog.movecopy.cancel'), ENT_QUOTES) ?>
+                </button>
+                <button @click="confirmCopy()"
+                        x-show="moveCopyTarget?.type !== 'dir'"
+                        class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition">
+                    <?= htmlspecialchars($t->t('dialog.movecopy.copy'), ENT_QUOTES) ?>
+                </button>
+                <button @click="confirmMove()"
+                        class="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition">
+                    <?= htmlspecialchars($t->t('dialog.movecopy.move'), ENT_QUOTES) ?>
+                </button>
+            </div>
+        </div>
+    </div>
 </div>
 
 <script>
@@ -389,6 +437,10 @@ function fileBrowser() {
 
         showMkdirDialog: false,
         mkdirValue: '',
+
+        showMoveCopyDialog: false,
+        moveCopyTarget: null,
+        moveCopyDestDir: '',
 
         get sortedFiles() {
             return [...this.files].sort((a, b) => {
@@ -535,6 +587,61 @@ function fileBrowser() {
             const url = '/browser/download?share=' + encodeURIComponent(this.currentShare)
                       + '&path=' + encodeURIComponent(file.path);
             window.open(url, '_blank');
+        },
+
+        startMoveCopy(file) {
+            this.moveCopyTarget  = file;
+            this.moveCopyDestDir = this.currentPath;
+            this.showMoveCopyDialog = true;
+            this.$nextTick(() => this.$refs.moveCopyInput?.focus());
+        },
+
+        async confirmMove() {
+            if (!this.moveCopyTarget) return;
+            this.showMoveCopyDialog = false;
+            try {
+                const res = await fetch('/file/move', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        share:    this.currentShare,
+                        old_path: this.moveCopyTarget.path,
+                        dest_dir: this.moveCopyDestDir.trim(),
+                    }),
+                });
+                const data = await res.json();
+                if (data.success) {
+                    await this.loadFiles();
+                } else {
+                    this.showFlash(data.error ?? 'Move failed', 'error');
+                }
+            } catch (e) {
+                this.showFlash('Move failed', 'error');
+            }
+        },
+
+        async confirmCopy() {
+            if (!this.moveCopyTarget) return;
+            this.showMoveCopyDialog = false;
+            try {
+                const res = await fetch('/file/copy', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        share:    this.currentShare,
+                        src_path: this.moveCopyTarget.path,
+                        dest_dir: this.moveCopyDestDir.trim(),
+                    }),
+                });
+                const data = await res.json();
+                if (data.success) {
+                    await this.loadFiles();
+                } else {
+                    this.showFlash(data.error ?? 'Copy failed', 'error');
+                }
+            } catch (e) {
+                this.showFlash('Copy failed', 'error');
+            }
         },
 
         startRename(file) {

@@ -21,6 +21,7 @@ return [
     'browser.download'            => 'Herunterladen',
     'browser.open_hint'           => 'Doppelklick zum Öffnen',
     'browser.rename'              => 'Umbenennen',
+    'browser.move_copy'           => 'Verschieben / Kopieren',
     'browser.delete'              => 'Löschen',
     'browser.loading'             => 'Wird geladen…',
     'browser.empty'               => 'Dieser Ordner ist leer.',
@@ -38,6 +39,13 @@ return [
     'upload.failed'               => 'Fehlgeschlagen: :files',
 
     // Dialogs
+    'dialog.movecopy.title'        => 'Verschieben / Kopieren',
+    'dialog.movecopy.label'        => 'Zielordner',
+    'dialog.movecopy.hint'         => 'Der Dateiname bleibt unverändert.',
+    'dialog.movecopy.hint_dir'     => 'Ordner können nur verschoben, nicht kopiert werden.',
+    'dialog.movecopy.move'         => 'Verschieben',
+    'dialog.movecopy.copy'         => 'Kopieren',
+    'dialog.movecopy.cancel'       => 'Abbrechen',
     'dialog.rename.title'         => 'Umbenennen',
     'dialog.rename.label'         => 'Neuer Name',
     'dialog.rename.confirm'       => 'Umbenennen',

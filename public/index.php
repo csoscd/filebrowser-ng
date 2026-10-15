@@ -105,6 +105,8 @@ $router->get('/browser/download', fn($req) => $browser->download($req));
 $router->post('/upload',          fn($req) => $upload->upload($req));
 $router->post('/upload/chunk',    fn($req) => $upload->chunk($req));
 $router->post('/file/rename',     fn($req) => $actions->rename($req));
+$router->post('/file/move',       fn($req) => $actions->move($req));
+$router->post('/file/copy',       fn($req) => $actions->copy($req));
 $router->post('/file/delete',     fn($req) => $actions->delete($req));
 $router->post('/file/mkdir',      fn($req) => $actions->mkdir($req));
 
