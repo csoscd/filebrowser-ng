@@ -24,9 +24,10 @@ class UploadController
     {
         $this->requireAuth();
 
-        $share = (string) $request->getBody('share', '');
-        $path  = (string) $request->getBody('path', '');
-        $files = $request->getFiles();
+        $share  = (string) $request->getBody('share', '');
+        $path   = (string) $request->getBody('path', '');
+        $server = (string) $request->getBody('server', '');
+        $files  = $request->getFiles();
 
         if ($share === '') {
             Response::json(['error' => 'share required'], 400);
@@ -36,7 +37,7 @@ class UploadController
             Response::json(['error' => 'no files uploaded'], 400);
         }
 
-        $this->connectSmb();
+        $this->connectSmb($server);
 
         $uploaded = [];
         $failed   = [];
@@ -73,6 +74,7 @@ class UploadController
         $filename   = (string) $request->getBody('filename', '');
         $chunkIndex = (int)    $request->getBody('chunk_index', 0);
         $chunkTotal = (int)    $request->getBody('chunk_total', 1);
+        $server     = (string) $request->getBody('server', '');
         $chunkFile  = $request->getFile('chunk');
 
         if ($share === '' || $filename === '' || $chunkFile === null) {
@@ -85,7 +87,7 @@ class UploadController
             Response::json(['error' => 'invalid chunk parameters'], 400);
         }
 
-        $this->connectSmb();
+        $this->connectSmb($server);
 
         $targetPath = ltrim($path . '/' . $filename, '/');
         $partPath   = $targetPath . '.part';
@@ -169,17 +171,38 @@ class UploadController
         }
     }
 
-    private function connectSmb(): void
+    private function connectSmb(string $host = ''): void
     {
+        $defaultHost = (string) $this->config->get('smb.server', '');
+
+        if ($host === '' || $host === $defaultHost) {
+            $connected = $this->provider->connect(
+                $defaultHost,
+                $this->session->getUsername() ?? '',
+                $this->session->getPassword() ?? '',
+                ['domain' => (string) $this->config->get('smb.domain', '')]
+            );
+            if (!$connected) {
+                $this->session->destroy();
+                Response::json(['error' => 'session expired'], 401);
+            }
+            return;
+        }
+
         $connected = $this->provider->connect(
-            (string) $this->config->get('smb.server', ''),
+            $host,
             $this->session->getUsername() ?? '',
             $this->session->getPassword() ?? '',
-            ['domain' => (string) $this->config->get('smb.domain', '')]
+            ['domain' => '']
         );
+
+        if (!$connected && $this->session->hasExtraCredentials($host)) {
+            $extra     = $this->session->getExtraCredentials($host);
+            $connected = $this->provider->connect($host, $extra['username'], $extra['password'], ['domain' => '']);
+        }
+
         if (!$connected) {
-            $this->session->destroy();
-            Response::json(['error' => 'session expired'], 401);
+            Response::json(['error' => 'credentials_required', 'host' => $host], 401);
         }
     }
 }

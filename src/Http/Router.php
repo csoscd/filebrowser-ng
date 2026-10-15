@@ -18,6 +18,11 @@ class Router
         $this->routes[] = ['POST', $path, $handler];
     }
 
+    public function delete(string $path, callable $handler): void
+    {
+        $this->routes[] = ['DELETE', $path, $handler];
+    }
+
     public function dispatch(Request $request): void
     {
         $method = $request->getMethod();

@@ -11,6 +11,57 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.3.0] – 2026-10-15
+
+### Added
+
+- **Multi-server support**: users can add additional SMB servers directly from the sidebar without leaving the file manager
+  - "+" button at the bottom of the sidebar opens the Add Server dialog (host, optional display name, optional domain)
+  - The app tests the connection using the current session credentials first; extra credentials are only requested when the session credentials fail
+  - Per-server inline credential prompt in the sidebar (username + password stored in PHP session only, not in the database)
+  - Removing a server removes all its saved custom shares automatically (cascade delete)
+- **`ServerRepository`** extended:
+  - New `user_servers` table (username, host, display_name, domain; UNIQUE username+host)
+  - `user_shares` now has a `server_id` FK → `user_servers(id) ON DELETE CASCADE`
+  - New methods: `addServer`, `findServersByUser`, `findServer`, `findServerByHost`, `deleteServer`, `findSharesByServer`
+  - Legacy alias methods preserved for backwards compatibility
+  - `PRAGMA foreign_keys = ON` enabled so cascade deletes work correctly
+- **`ServerController`**: new controller for server management API
+  - `GET /api/servers`: list user's servers
+  - `POST /api/servers`: add server (connection test, store extra credentials in session)
+  - `DELETE /api/servers/{id}`: remove server (cascade, clear session credentials)
+  - `POST /api/servers/{id}/credentials`: store per-server credentials in session
+- **`SessionManager`** extended:
+  - `setExtraCredentials(host, username, password)`: store per-host credentials in session
+  - `getExtraCredentials(host)`: retrieve per-host credentials
+  - `hasExtraCredentials(host)`: check whether credentials exist for a host
+  - `clearExtraCredentials(host)`: remove per-host credentials
+- **`/api/shares` response format** changed from `{auto, custom}` to `{servers: [...]}` – each server entry includes `id`, `host`, `display_name`, `shares`, `custom`, `is_default` and `needs_credentials`
+- **`server` parameter** propagated to all API calls:
+  - `/api/files`, `/browser/download`, `/browser/download-zip`
+  - `/upload/chunk`, `/file/rename`, `/file/delete`, `/file/mkdir`, `/file/move`, `/file/copy`, `/api/sort-pref`
+- **Sidebar redesign**: shares grouped by server with collapsible sections; server header shows default label and remove button on hover
+
+### Changed
+
+- `BrowserController`: `shares()` returns new grouped format; `connectSmbForHost()` picks session credentials for the default server or extra credentials for additional servers
+- `BrowserController`: API endpoints (`shares`, `listFiles`, `download`, `downloadZip`, `saveSortPref`) now return JSON 401 on unauthenticated access via new `requireAuthApi()` method; the HTML index route continues to redirect to `/`
+- `FileActionController`: `copy()` and `move()` now handle cross-server operations – `dest_server` is read from the request; if it differs from the source server, the file is downloaded to a local temp file via the source connection and uploaded via a fresh destination connection; move additionally deletes the source after a successful upload
+- `FileActionController`, `UploadController`: all actions accept optional `server` parameter from request body
+- `SessionManager::destroy()`: guarded with `session_status()` check to prevent PHP warnings when no session is active
+- Router: `delete()` method added
+
+### Tests
+
+- **Test infrastructure**: `Response::$testMode` flag + `ResponseSentException` (thrown instead of `exit` in all Response methods); `tests/Helpers/TestRequest` (Request subclass bypassing superglobals)
+- `ServerRepositoryTest` rewritten to cover new server CRUD methods, cascade delete, `findSharesByServer`, and legacy alias methods
+- `SessionManagerTest` extended with tests for `setExtraCredentials`, `getExtraCredentials`, `hasExtraCredentials`, `clearExtraCredentials`
+- `ServerControllerTest` (13 tests): list, add (missing host, duplicate, connection failed, session creds, extra creds), remove, storeCredentials
+- `BrowserControllerSharesTest` (7 tests): response shape, default server entry, connection failure, user-added server, needs-credentials flag, extra-credentials from session, auth required
+- `ServerParameterTest` (5 tests): `server` parameter forwarding in `UploadController` and `FileActionController` for default server, extra server without credentials, extra server with stored credentials
+
+---
+
 ## [0.2.0] – 2026-10-15
 
 ### Added
@@ -74,6 +125,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **PHPUnit tests**: `SessionManagerTest`, `TranslatorTest` (unit); `ServerRepositoryTest` (integration)
 - **.semgrepignore**, **.gitleaks.toml** for CI false-positive suppression
 
-[Unreleased]: https://github.com/csoscd/filebrowser-ng/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/csoscd/filebrowser-ng/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/csoscd/filebrowser-ng/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/csoscd/filebrowser-ng/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/csoscd/filebrowser-ng/releases/tag/v0.1.0

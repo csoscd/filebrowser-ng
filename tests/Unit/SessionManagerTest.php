@@ -58,4 +58,43 @@ class SessionManagerTest extends TestCase
         $this->assertNull($manager->get('nonexistent'));
         $this->assertSame('default', $manager->get('nonexistent', 'default'));
     }
+
+    public function testExtraCredentialsRoundtrip(): void
+    {
+        $manager = $this->makeManager();
+
+        $this->assertFalse($manager->hasExtraCredentials('nas2'));
+        $this->assertNull($manager->getExtraCredentials('nas2'));
+
+        $manager->setExtraCredentials('nas2', 'bob', 's3cr3t');
+
+        $this->assertTrue($manager->hasExtraCredentials('nas2'));
+        $creds = $manager->getExtraCredentials('nas2');
+        $this->assertNotNull($creds);
+        $this->assertSame('bob',    $creds['username']);
+        $this->assertSame('s3cr3t', $creds['password']);
+    }
+
+    public function testExtraCredentialsClear(): void
+    {
+        $manager = $this->makeManager();
+        $manager->setExtraCredentials('nas2', 'bob', 's3cr3t');
+        $manager->clearExtraCredentials('nas2');
+
+        $this->assertFalse($manager->hasExtraCredentials('nas2'));
+    }
+
+    public function testExtraCredentialsIsolatedPerHost(): void
+    {
+        $manager = $this->makeManager();
+        $manager->setExtraCredentials('nas1', 'alice', 'pw1');
+        $manager->setExtraCredentials('nas2', 'bob',   'pw2');
+
+        $this->assertSame('alice', $manager->getExtraCredentials('nas1')['username']);
+        $this->assertSame('bob',   $manager->getExtraCredentials('nas2')['username']);
+
+        $manager->clearExtraCredentials('nas1');
+        $this->assertFalse($manager->hasExtraCredentials('nas1'));
+        $this->assertTrue($manager->hasExtraCredentials('nas2'));
+    }
 }

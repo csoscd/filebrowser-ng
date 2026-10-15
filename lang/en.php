@@ -91,8 +91,25 @@ return [
     'dialog.picker.shares'    => 'Shares',
     'dialog.picker.executing' => 'Working…',
 
+    // Server management
+    'server.add'                  => 'Add server',
+    'server.add_title'            => 'Add SMB Server',
+    'server.host'                 => 'Host / IP',
+    'server.display_name'         => 'Display name (optional)',
+    'server.domain'               => 'Domain / Workgroup (optional)',
+    'server.remove'               => 'Remove server',
+    'server.remove_confirm'       => 'Remove server ":name" and all its saved shares?',
+    'server.credentials_required' => 'Credentials required',
+    'server.enter_credentials'    => 'Enter credentials for :host',
+    'server.connecting'           => 'Connecting…',
+    'server.connect_failed'       => 'Connection failed. Check credentials.',
+    'server.already_added'        => 'This server is already added.',
+    'server.default_label'        => '(default)',
+
     // JS error messages
     'js.error.load_shares'        => 'Failed to load shares',
+    'js.error.add_server'         => 'Failed to add server',
+    'js.error.credentials'        => 'Failed to store credentials',
     'js.error.load_files'         => 'Failed to load files',
     'js.error.chunk_upload'       => 'Chunk upload failed',
     'js.error.download_zip'       => 'ZIP download failed',

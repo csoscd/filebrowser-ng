@@ -9,7 +9,7 @@ Web-based file manager for SMB/Samba shares. Users log in with their Samba crede
 
 ---
 
-## Features (v1)
+## Features
 
 | Feature | Description |
 |---------|-------------|
@@ -17,12 +17,15 @@ Web-based file manager for SMB/Samba shares. Users log in with their Samba crede
 | **Share discovery** | Automatic SMB share enumeration |
 | **Directory navigation** | Breadcrumb navigation, click to open folders |
 | **File download** | Download individual files |
-| **File upload** | Drag & drop, multiple files at once |
+| **File upload** | Drag & drop, multiple files at once, chunked streaming |
 | **Rename** | Rename files and folders |
 | **Delete** | Delete files and folders (with confirmation dialog) |
+| **Move / Copy** | Move or copy files and folders across shares |
 | **New folder** | Create a new directory in the current path |
+| **Multi-server** | Add multiple SMB servers per user session; per-server credentials stored in session |
 | **Custom shares** | Manually add hidden shares (persisted in SQLite) |
-| **Internationalisation** | English and German UI |
+| **Disk usage** | Per-share disk space indicator in the sidebar |
+| **Internationalisation** | English, German and French UI |
 
 ---
 
@@ -60,7 +63,7 @@ Open `http://localhost:8080` and log in with your Samba credentials.
 | `LOG_PATH` | `/var/www/log/filebrowser-ng.log` | no | Log file path |
 | `LOG_LEVEL` | `info` | no | Monolog level (`debug`, `info`, `warning`, `error`) |
 | `LOG_MAX_DAYS` | `30` | no | Log rotation in days |
-| `I18N_LANGUAGE` | `en` | no | UI language (`en`, `de`) |
+| `I18N_LANGUAGE` | `en` | no | UI language (`en`, `de`, `fr`) |
 | `DB_PATH` | `/var/www/data/filebrowser.sqlite` | no | SQLite database path |
 
 ### Volumes
@@ -68,7 +71,7 @@ Open `http://localhost:8080` and log in with your Samba credentials.
 | Host path | Container path | Purpose |
 |-----------|---------------|---------|
 | `./conf` | `/var/www/conf` | Generated `config.json` (read/write) |
-| `./data` | `/var/www/data` | SQLite database for custom shares |
+| `./data` | `/var/www/data` | SQLite database for custom shares and additional servers |
 | `./log` | `/var/www/log` | Application log files |
 
 > **Permissions**: no manual `chown` needed on the Docker host. The container entrypoint
@@ -100,6 +103,15 @@ Browser
      │  Server      │
      └──────────────┘
 ```
+
+### Multi-server support (v0.3+)
+
+Users can add additional SMB servers directly from the sidebar without leaving the file manager.
+The default server is defined by `SMB_SERVER`. Extra servers are stored per-user in SQLite.
+
+- **Same credentials**: the app tries the session credentials first; if the connection succeeds, the server is accessible immediately.
+- **Different credentials**: if the session credentials fail, a per-server credential prompt appears inline in the sidebar. The entered credentials are stored only in the PHP session – never in the database or on disk.
+- Removing a server also removes all its custom shares (cascade delete).
 
 ### Extensible storage layer
 
