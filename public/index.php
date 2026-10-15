@@ -74,6 +74,9 @@ $translator = new Translator(
     (string) $config->get('i18n.default_language', 'en')
 );
 $view = new TemplateEngine(dirname(__DIR__) . '/templates', $translator);
+$view->setGlobals([
+    'appVersion' => (string) (getenv('APP_VERSION') ?: 'dev'),
+]);
 
 // ── Storage ────────────────────────────────────────────────────────────────
 $provider = new SmbProvider($logger, (string) $config->get('smb.domain', ''));
