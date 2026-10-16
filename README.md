@@ -82,6 +82,7 @@ Leave all `OIDC_*` variables empty (or set `OIDC_ENABLED=false`) to keep the cla
 | `OIDC_USERNAME_CLAIM` | `""` | Claim to use as the SMB username. Empty = auto (`preferred_username` → `sub`) |
 | `OIDC_VERIFY_SSL` | `true` | Set to `false` to disable SSL verification entirely (not recommended) |
 | `OIDC_SSL_CA_BUNDLE` | `""` | Path to a custom CA bundle (PEM) inside the container. Takes precedence over `OIDC_VERIFY_SSL`. Use this for private/self-signed certificates |
+| `OIDC_SCOPES` | `openid profile` | Space-separated list of OIDC scopes to request. Add the name of your custom scope mapping here so extra claims (e.g. `smb_key`) are included in the ID Token |
 
 ##### OIDC login flow
 

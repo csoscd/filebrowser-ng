@@ -27,6 +27,7 @@ class OidcService
         private readonly LoggerInterface $logger,
         private readonly bool            $verifySsl = true,
         private readonly string          $caBundle = '',
+        private readonly string          $scopes = 'openid profile',
     ) {}
 
     public function isConfigured(): bool
@@ -42,7 +43,7 @@ class OidcService
             'response_type' => 'code',
             'client_id'     => $this->clientId,
             'redirect_uri'  => $this->redirectUri,
-            'scope'         => 'openid profile',
+            'scope'         => $this->scopes,
             'state'         => $state,
             'nonce'         => $nonce,
         ]);

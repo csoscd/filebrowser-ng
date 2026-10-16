@@ -115,6 +115,7 @@ if ($oidcEnabled) {
         logger:        $logger,
         verifySsl:     (bool)   $config->get('oidc.verify_ssl', true),
         caBundle:      (string) $config->get('oidc.ca_bundle', ''),
+        scopes:        (string) $config->get('oidc.scopes', 'openid profile'),
     );
 }
 

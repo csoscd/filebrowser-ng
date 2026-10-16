@@ -87,6 +87,7 @@ php -r "
         'username_claim' => getenv('OIDC_USERNAME_CLAIM') ?: '',
         'verify_ssl'     => filter_var(getenv('OIDC_VERIFY_SSL') ?: 'true', FILTER_VALIDATE_BOOLEAN),
         'ca_bundle'      => getenv('OIDC_SSL_CA_BUNDLE') ?: '',
+        'scopes'         => getenv('OIDC_SCOPES') ?: 'openid profile',
     ],
 ];
 file_put_contents('${CONFIG_FILE}', json_encode(\$config, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . PHP_EOL);

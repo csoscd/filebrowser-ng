@@ -41,6 +41,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Login page now always shows both the SSO button and the classic SMB login form when OIDC is configured; the forms are separated by a divider; the classic login is no longer blocked
 - New `OIDC_VERIFY_SSL` env var (default `true`): set to `false` to disable SSL verification entirely
 - New `OIDC_SSL_CA_BUNDLE` env var: path to a custom CA bundle (PEM) inside the container; takes precedence over `OIDC_VERIFY_SSL` and is the recommended approach for private/self-signed certificates
+- New `OIDC_SCOPES` env var (default `openid profile`): add the name of the custom Authentik scope mapping (e.g. `openid profile smb_key`) so that extra claims are included in the ID Token
 
 ### Tests
 
