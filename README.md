@@ -81,7 +81,7 @@ Leave all `OIDC_*` variables empty (or set `OIDC_ENABLED=false`) to keep the cla
 | `OIDC_SMB_KEY_CLAIM` | `smb_key` | Custom claim in the ID Token carrying a per-user encryption key for stored SMB passwords (optional but recommended) |
 | `OIDC_USERNAME_CLAIM` | `""` | Claim to use as the SMB username. Empty = auto (`preferred_username` → `sub`) |
 | `OIDC_VERIFY_SSL` | `true` | Set to `false` to disable SSL verification entirely (not recommended) |
-| `OIDC_CA_BUNDLE` | `""` | Path to a custom CA bundle (PEM) inside the container. Takes precedence over `OIDC_VERIFY_SSL`. Use this for private/self-signed certificates |
+| `OIDC_SSL_CA_BUNDLE` | `""` | Path to a custom CA bundle (PEM) inside the container. Takes precedence over `OIDC_VERIFY_SSL`. Use this for private/self-signed certificates |
 
 ##### OIDC login flow
 
@@ -221,7 +221,7 @@ environment:
 
 | Symptom | Likely cause |
 |---------|-------------|
-| "Identity provider unavailable" | `OIDC_DISCOVERY_URL` unreachable, or SSL cert not trusted. Mount your root CA into the container and set `OIDC_CA_BUNDLE=/path/to/root_ca.crt` |
+| "Identity provider unavailable" | `OIDC_DISCOVERY_URL` unreachable, or SSL cert not trusted. Mount your root CA into the container and set `OIDC_SSL_CA_BUNDLE=/path/to/root_ca.crt` |
 | "Login was cancelled or denied" | Authentik denied access (check Application policy, user group) |
 | "Login response was invalid" | Redirect URI mismatch or `OIDC_CLIENT_SECRET` wrong |
 | "Remember password" checkbox is disabled | `smb_key` attribute or Property Mapping not set up (see steps 3–4) |
