@@ -38,6 +38,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `AuthController`: OIDC dependencies (`OidcService`, `CredentialRepository`) injected as optional constructor arguments; classic login is blocked when OIDC is configured
 - `login.php` template: shows OIDC button when `oidc_enabled` is true, otherwise classic form (no visual change for existing deployments)
 - `composer.json`: added `guzzlehttp/guzzle ^7.8` and `firebase/php-jwt ^7.0` (v7 required to avoid CVE-2025-45769)
+- Login page now always shows both the SSO button and the classic SMB login form when OIDC is configured; the forms are separated by a divider; the classic login is no longer blocked
+- New `OIDC_VERIFY_SSL` env var (default `true`): set to `false` for OIDC providers with private or self-signed certificates
 
 ### Tests
 

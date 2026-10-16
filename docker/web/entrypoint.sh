@@ -85,6 +85,7 @@ php -r "
         'redirect_uri'   => getenv('OIDC_REDIRECT_URI') ?: '',
         'smb_key_claim'  => getenv('OIDC_SMB_KEY_CLAIM') ?: 'smb_key',
         'username_claim' => getenv('OIDC_USERNAME_CLAIM') ?: '',
+        'verify_ssl'     => filter_var(getenv('OIDC_VERIFY_SSL') ?: 'true', FILTER_VALIDATE_BOOLEAN),
     ],
 ];
 file_put_contents('${CONFIG_FILE}', json_encode(\$config, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . PHP_EOL);

@@ -25,6 +25,7 @@ class OidcService
         private readonly string          $smbKeyClaim,
         private readonly string          $usernameClaim,
         private readonly LoggerInterface $logger,
+        private readonly bool            $verifySsl = true,
     ) {}
 
     public function isConfigured(): bool
@@ -177,6 +178,10 @@ class OidcService
 
     private function makeHttpClient(): Client
     {
-        return new Client(['timeout' => 10.0, 'connect_timeout' => 5.0]);
+        return new Client([
+            'timeout'         => 10.0,
+            'connect_timeout' => 5.0,
+            'verify'          => $this->verifySsl,
+        ]);
     }
 }

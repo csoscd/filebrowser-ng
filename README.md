@@ -80,6 +80,7 @@ Leave all `OIDC_*` variables empty (or set `OIDC_ENABLED=false`) to keep the cla
 | `OIDC_REDIRECT_URI` | — | Callback URL – must match the redirect URI registered at the provider (e.g. `https://files.example.com/auth/oidc/callback`) |
 | `OIDC_SMB_KEY_CLAIM` | `smb_key` | Custom claim in the ID Token carrying a per-user encryption key for stored SMB passwords (optional but recommended) |
 | `OIDC_USERNAME_CLAIM` | `""` | Claim to use as the SMB username. Empty = auto (`preferred_username` → `sub`) |
+| `OIDC_VERIFY_SSL` | `true` | Set to `false` when the OIDC provider uses a private or self-signed certificate |
 
 ##### OIDC login flow
 
@@ -219,7 +220,7 @@ environment:
 
 | Symptom | Likely cause |
 |---------|-------------|
-| "Identity provider unavailable" | `OIDC_DISCOVERY_URL` is wrong or Authentik unreachable from the container |
+| "Identity provider unavailable" | `OIDC_DISCOVERY_URL` unreachable, or SSL cert not trusted. Set `OIDC_VERIFY_SSL=false` for private/self-signed certificates |
 | "Login was cancelled or denied" | Authentik denied access (check Application policy, user group) |
 | "Login response was invalid" | Redirect URI mismatch or `OIDC_CLIENT_SECRET` wrong |
 | "Remember password" checkbox is disabled | `smb_key` attribute or Property Mapping not set up (see steps 3–4) |

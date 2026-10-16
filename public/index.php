@@ -113,6 +113,7 @@ if ($oidcEnabled) {
         smbKeyClaim:   (string) $config->get('oidc.smb_key_claim', 'smb_key'),
         usernameClaim: (string) $config->get('oidc.username_claim', ''),
         logger:        $logger,
+        verifySsl:     (bool)   $config->get('oidc.verify_ssl', true),
     );
 }
 
