@@ -183,7 +183,7 @@ The `smb_key` attribute must be included in the ID Token as a custom claim.
 2. Choose **Scope Mapping**
 3. Fill in:
    - **Name**: `filebrowser-ng smb_key`
-   - **Scope name**: `smb_key` (or any name – it is included automatically)
+   - **Scope name**: `smb_key` (must match what you add to `OIDC_SCOPES` in step 5)
    - **Expression**:
      ```python
      return {
@@ -192,6 +192,8 @@ The `smb_key` attribute must be included in the ID Token as a custom claim.
      ```
 4. Save.
 5. Go back to your **Provider → Edit** and add this mapping under **Advanced protocol settings → Scopes**.
+
+> **Important**: Adding the mapping to the Provider only *permits* the scope. The client must also *request* it explicitly – see `OIDC_SCOPES` in step 5.
 
 ### 5 – Configure filebrowser-ng
 
@@ -206,6 +208,9 @@ environment:
   OIDC_DISCOVERY_URL: "https://auth.example.com/application/o/filebrowser-ng/.well-known/openid-configuration"
   OIDC_REDIRECT_URI: "https://files.example.com/auth/oidc/callback"
   OIDC_SMB_KEY_CLAIM: "smb_key"
+  # Request the custom scope so Authentik includes the smb_key claim in the ID Token.
+  # The scope name must match the "Scope name" field of the Property Mapping (step 4).
+  OIDC_SCOPES: "openid profile smb_key"
 ```
 
 ### 6 – Test the login
@@ -225,7 +230,7 @@ environment:
 | "Identity provider unavailable" | `OIDC_DISCOVERY_URL` unreachable, or SSL cert not trusted. Mount your root CA into the container and set `OIDC_SSL_CA_BUNDLE=/path/to/root_ca.crt` |
 | "Login was cancelled or denied" | Authentik denied access (check Application policy, user group) |
 | "Login response was invalid" | Redirect URI mismatch or `OIDC_CLIENT_SECRET` wrong |
-| "Remember password" checkbox is disabled | `smb_key` attribute or Property Mapping not set up (see steps 3–4) |
+| "Remember password" checkbox is disabled | `smb_key` attribute or Property Mapping not set up (see steps 3–4), or `OIDC_SCOPES` does not include the scope name (see step 5) |
 | SMB password rejected after save | SMB password changed on the server; re-enter to update the stored value |
 
 ### Volumes
