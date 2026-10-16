@@ -420,6 +420,7 @@
                                 <tbody>
                                     <template x-for="file in sortedFiles" :key="file.path">
                                         <tr @dblclick="file.type === 'dir' ? navigate(file.path) : openFile(file)"
+                                            @touchend="handleTap(file, $event)"
                                             :class="selected.includes(file.path) ? 'bg-blue-50' : 'hover:bg-white'"
                                             class="border-b border-gray-100 transition cursor-pointer select-none">
                                             <td class="px-3 py-2.5 w-10" @click.stop>
@@ -1266,6 +1267,21 @@ function fileBrowser() {
                       + '&path=' + encodeURIComponent(file.path)
                       + (this.currentServer ? '&server=' + encodeURIComponent(this.currentServer) : '');
             window.open(url, '_blank');
+        },
+
+        _lastTapPath: null,
+        _lastTapTime: 0,
+        handleTap(file, event) {
+            const now = Date.now();
+            if (this._lastTapPath === file.path && now - this._lastTapTime < 350) {
+                event.preventDefault();
+                this._lastTapPath = null;
+                this._lastTapTime = 0;
+                file.type === 'dir' ? this.navigate(file.path) : this.openFile(file);
+            } else {
+                this._lastTapPath = file.path;
+                this._lastTapTime = now;
+            }
         },
 
         toggleSelect(path) {
