@@ -114,6 +114,7 @@ if ($oidcEnabled) {
         usernameClaim: (string) $config->get('oidc.username_claim', ''),
         logger:        $logger,
         verifySsl:     (bool)   $config->get('oidc.verify_ssl', true),
+        caBundle:      (string) $config->get('oidc.ca_bundle', ''),
     );
 }
 

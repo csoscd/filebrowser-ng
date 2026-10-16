@@ -26,6 +26,7 @@ class OidcService
         private readonly string          $usernameClaim,
         private readonly LoggerInterface $logger,
         private readonly bool            $verifySsl = true,
+        private readonly string          $caBundle = '',
     ) {}
 
     public function isConfigured(): bool
@@ -178,10 +179,19 @@ class OidcService
 
     private function makeHttpClient(): Client
     {
+        // CA bundle path takes precedence; then explicit verify flag; default: system CA
+        if ($this->caBundle !== '') {
+            $verify = $this->caBundle;
+        } elseif (!$this->verifySsl) {
+            $verify = false;
+        } else {
+            $verify = true;
+        }
+
         return new Client([
             'timeout'         => 10.0,
             'connect_timeout' => 5.0,
-            'verify'          => $this->verifySsl,
+            'verify'          => $verify,
         ]);
     }
 }
