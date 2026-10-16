@@ -29,8 +29,10 @@ use FilebrowserNg\Http\Request;
 use FilebrowserNg\Http\Response;
 use FilebrowserNg\Http\Router;
 use FilebrowserNg\I18n\Translator;
+use FilebrowserNg\Repository\CredentialRepository;
 use FilebrowserNg\Repository\ServerRepository;
 use FilebrowserNg\Repository\UserPreferenceRepository;
+use FilebrowserNg\Security\OidcService;
 use FilebrowserNg\Session\SessionManager;
 use FilebrowserNg\Storage\Smb\SmbProvider;
 use FilebrowserNg\View\TemplateEngine;
@@ -96,10 +98,26 @@ $view->setGlobals([
 $provider = new SmbProvider($logger, (string) $config->get('smb.domain', ''));
 
 // ── Repositories ──────────────────────────────────────────────────────────
-$serverRepo = new ServerRepository($dbPath);
+$serverRepo  = new ServerRepository($dbPath);
+$credRepo    = new CredentialRepository($dbPath);
+
+// ── OIDC (optional – only instantiated when configured) ───────────────────
+$oidcEnabled = (bool) $config->get('oidc.enabled', false);
+$oidcService = null;
+if ($oidcEnabled) {
+    $oidcService = new OidcService(
+        clientId:      (string) $config->get('oidc.client_id', ''),
+        clientSecret:  (string) $config->get('oidc.client_secret', ''),
+        discoveryUrl:  (string) $config->get('oidc.discovery_url', ''),
+        redirectUri:   (string) $config->get('oidc.redirect_uri', ''),
+        smbKeyClaim:   (string) $config->get('oidc.smb_key_claim', 'smb_key'),
+        usernameClaim: (string) $config->get('oidc.username_claim', ''),
+        logger:        $logger,
+    );
+}
 
 // ── Controllers ────────────────────────────────────────────────────────────
-$auth    = new AuthController($session, $provider, $view, $config, $logger);
+$auth    = new AuthController($session, $provider, $view, $config, $logger, $oidcService, $credRepo);
 $browser = new BrowserController($session, $provider, $serverRepo, $prefRepo, $view, $config, $logger);
 $upload  = new UploadController($session, $provider, $config, $logger);
 $actions = new FileActionController($session, $provider, $config, $logger);
@@ -108,9 +126,13 @@ $servers = new ServerController($session, $serverRepo, $provider, $config, $logg
 // ── Routes ─────────────────────────────────────────────────────────────────
 $router = new Router();
 
-$router->get('/',                 fn($req) => $auth->showLogin($req));
-$router->post('/auth/login',      fn($req) => $auth->login($req));
-$router->get('/auth/logout',      fn($req) => $auth->logout($req));
+$router->get('/',                      fn($req) => $auth->showLogin($req));
+$router->post('/auth/login',           fn($req) => $auth->login($req));
+$router->get('/auth/logout',           fn($req) => $auth->logout($req));
+$router->post('/auth/oidc',            fn($req) => $auth->oidcRedirect($req));
+$router->get('/auth/oidc/callback',    fn($req) => $auth->oidcCallback($req));
+$router->get('/auth/smb',              fn($req) => $auth->showSmbCredentials($req));
+$router->post('/auth/smb',             fn($req) => $auth->smbCredentials($req));
 $router->get('/browser',          fn($req) => $browser->index($req));
 $router->get('/api/shares',       fn($req) => $browser->shares($req));
 $router->get('/api/files',        fn($req) => $browser->listFiles($req));

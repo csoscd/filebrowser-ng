@@ -65,6 +65,54 @@ Open `http://localhost:8080` and log in with your Samba credentials.
 | `LOG_MAX_DAYS` | `30` | no | Log rotation in days |
 | `I18N_LANGUAGE` | `en` | no | UI language (`en`, `de`, `fr`) |
 | `DB_PATH` | `/var/www/data/filebrowser.sqlite` | no | SQLite database path |
+| `UPLOAD_CHUNK_SIZE` | `10485760` | no | Upload chunk size in bytes (default 10 MB) |
+
+#### OIDC (optional)
+
+Leave all `OIDC_*` variables empty (or set `OIDC_ENABLED=false`) to keep the classic SMB login. Set `OIDC_ENABLED=true` to replace it with SSO.
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `OIDC_ENABLED` | `false` | Activate OIDC authentication |
+| `OIDC_CLIENT_ID` | — | Client ID registered at the OIDC provider |
+| `OIDC_CLIENT_SECRET` | — | Client secret |
+| `OIDC_DISCOVERY_URL` | — | OpenID Configuration URL **or** issuer URL (`/.well-known/openid-configuration` is appended automatically) |
+| `OIDC_REDIRECT_URI` | — | Callback URL – must match the redirect URI registered at the provider (e.g. `https://files.example.com/auth/oidc/callback`) |
+| `OIDC_SMB_KEY_CLAIM` | `smb_key` | Custom claim in the ID Token carrying a per-user encryption key for stored SMB passwords (optional but recommended) |
+| `OIDC_USERNAME_CLAIM` | `""` | Claim to use as the SMB username. Empty = auto (`preferred_username` → `sub`) |
+
+##### OIDC login flow
+
+```
+1. User clicks "Sign in with SSO"
+2. Browser is redirected to the OIDC provider
+3. After successful authentication the provider redirects back to /auth/oidc/callback
+4. The app verifies the ID Token, extracts the username (and optionally the smb_key claim)
+5a. If a stored SMB password exists and can be decrypted → login complete
+5b. Otherwise → SMB password form is shown
+6. User enters the SMB password (optional: tick "Remember password")
+7. Login complete
+```
+
+##### Setting up the smb_key claim
+
+To enable the "Remember password" feature the OIDC provider must deliver a stable,
+per-user random string as a custom claim. The claim name is configurable via
+`OIDC_SMB_KEY_CLAIM` (default: `smb_key`).
+
+**Authentik example** – create a *Property Mapping* (Scope type) for the application:
+```python
+return {
+    "smb_key": user.attributes.get("smb_key", "")
+}
+```
+Add a random 32-character hex string as `smb_key` to each user's attributes.
+
+**Keycloak example** – add a *User Attribute Mapper* named `smb_key` to the client,
+sourced from the user attribute `smb_key`.
+
+If the claim is absent the "Remember password" checkbox is shown as disabled with an
+explanatory note. Passwords will still work but must be re-entered on every login.
 
 ### Volumes
 

@@ -11,6 +11,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.4.0] – Unreleased
+
+### Added
+
+- **OIDC authentication** (optional): when configured, the classic SMB login form is replaced by a single "Sign in with SSO" button; any standard-compliant OIDC provider (Authentik, Keycloak, Auth0, Zitadel, …) is supported via OpenID Connect Discovery
+  - New environment variables: `OIDC_ENABLED`, `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`, `OIDC_DISCOVERY_URL`, `OIDC_REDIRECT_URI`, `OIDC_SMB_KEY_CLAIM`, `OIDC_USERNAME_CLAIM`
+  - When OIDC is disabled (default) every existing behaviour is unchanged
+- **Two-step OIDC login flow**:
+  - Step 1: user authenticates at the OIDC provider
+  - Step 2: user enters the SMB password in a dedicated credential form
+  - If the provider delivers a `smb_key` claim, the user can opt in to remember the SMB password (encrypted); on the next login the stored credentials are used automatically, skipping the second step
+- **Encrypted credential storage** (`CredentialRepository`):
+  - SMB passwords stored AES-256-GCM encrypted in SQLite
+  - Encryption key (`smb_key`) is never persisted – it comes from the OIDC ID Token and is held only in the PHP session
+  - If decryption fails (key rotation, tampered data), the user is asked to re-enter the password
+  - "Remember password" checkbox is disabled with an explanatory hint when no `smb_key` claim is present
+- **`OidcService`** (`src/Security/OidcService.php`): handles Discovery, Authorization URL, token exchange, ID Token validation (JWK signature, nonce, audience) and claim extraction; configurable username claim (`preferred_username` → `sub` fallback)
+- **`SessionManager`** extended with OIDC helpers: `setOidcState/getOidcState/clearOidcState`, `setOidcNonce/getOidcNonce/clearOidcNonce`, `setOidcPendingUser/getOidcPendingUser/clearOidcPending/isOidcPending`, `setSmbKey/getSmbKey/hasSmbKey`
+- New routes: `POST /auth/oidc` (redirect), `GET /auth/oidc/callback`, `GET /auth/smb` (form), `POST /auth/smb` (process)
+- New template `templates/smb_credentials.php` (SMB password form with optional save checkbox)
+- New i18n keys in `en`, `de`, `fr`: OIDC error messages, SMB credential form labels
+
+### Changed
+
+- `AuthController`: OIDC dependencies (`OidcService`, `CredentialRepository`) injected as optional constructor arguments; classic login is blocked when OIDC is configured
+- `login.php` template: shows OIDC button when `oidc_enabled` is true, otherwise classic form (no visual change for existing deployments)
+- `composer.json`: added `guzzlehttp/guzzle ^7.8` and `firebase/php-jwt ^7.0` (v7 required to avoid CVE-2025-45769)
+
+### Tests
+
+- `OidcServiceTest` (9 tests): `isConfigured`, `generateRandomString`, `extractUsername` (preferred_username, sub fallback, custom claim), `extractSmbKey` (present, missing, empty claim name, custom claim name)
+- `CredentialRepositoryTest` (10 tests): save/load, wrong key, exists, delete, overwrite, key rotation, deleteAllForUser, user/host isolation, special characters, unicode password
+- `SessionManagerOidcTest` (6 tests): state, nonce, pending user, smb_key roundtrips and edge cases
+
+---
+
 ## [0.3.0] – 2026-10-15
 
 ### Added

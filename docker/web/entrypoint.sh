@@ -21,6 +21,15 @@
 #   DB_PATH               /var/www/data/filebrowser.sqlite
 #   UPLOAD_CHUNK_SIZE     10485760   (bytes, default 10 MB)
 #
+# OIDC (optional – leave empty to use classic SMB login):
+#   OIDC_ENABLED          false
+#   OIDC_CLIENT_ID        ""
+#   OIDC_CLIENT_SECRET    ""
+#   OIDC_DISCOVERY_URL    ""   (OpenID Configuration URL or issuer URL)
+#   OIDC_REDIRECT_URI     ""   (must match the registered redirect URI at the provider)
+#   OIDC_SMB_KEY_CLAIM    smb_key   (custom claim carrying the SMB encryption key)
+#   OIDC_USERNAME_CLAIM   ""   (empty = auto: preferred_username → sub)
+#
 # @author  Christian Schulz <technik@meinetechnikwelt.rocks>
 # @license GNU General Public License version 3 or later
 # =============================================================================
@@ -67,6 +76,15 @@ php -r "
     ],
     'upload' => [
         'chunk_size' => (int)(getenv('UPLOAD_CHUNK_SIZE') ?: 10485760),
+    ],
+    'oidc' => [
+        'enabled'        => filter_var(getenv('OIDC_ENABLED') ?: 'false', FILTER_VALIDATE_BOOLEAN),
+        'client_id'      => getenv('OIDC_CLIENT_ID') ?: '',
+        'client_secret'  => getenv('OIDC_CLIENT_SECRET') ?: '',
+        'discovery_url'  => getenv('OIDC_DISCOVERY_URL') ?: '',
+        'redirect_uri'   => getenv('OIDC_REDIRECT_URI') ?: '',
+        'smb_key_claim'  => getenv('OIDC_SMB_KEY_CLAIM') ?: 'smb_key',
+        'username_claim' => getenv('OIDC_USERNAME_CLAIM') ?: '',
     ],
 ];
 file_put_contents('${CONFIG_FILE}', json_encode(\$config, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . PHP_EOL);
