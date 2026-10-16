@@ -114,6 +114,117 @@ sourced from the user attribute `smb_key`.
 If the claim is absent the "Remember password" checkbox is shown as disabled with an
 explanatory note. Passwords will still work but must be re-entered on every login.
 
+---
+
+## OIDC Setup guide (Authentik)
+
+This is a complete step-by-step guide for connecting filebrowser-ng to
+[Authentik](https://goauthentik.io/). The same principles apply to any other
+OIDC provider; the UI and terminology will differ.
+
+### 1 – Create an OAuth2/OIDC Provider in Authentik
+
+1. Open **Admin Interface → Applications → Providers → Create**
+2. Choose **OAuth2/OpenID Provider**
+3. Fill in:
+   - **Name**: `filebrowser-ng`
+   - **Authorization flow**: your standard authorization flow (e.g. `default-provider-authorization-explicit-consent`)
+   - **Client type**: `Confidential`
+   - **Client ID**: copy this value – you need it as `OIDC_CLIENT_ID`
+   - **Client Secret**: copy this value – you need it as `OIDC_CLIENT_SECRET`
+   - **Redirect URIs**: `https://files.example.com/auth/oidc/callback`
+     (replace with your actual hostname; must match `OIDC_REDIRECT_URI` exactly)
+   - **Scopes**: `openid`, `profile` (the defaults are fine)
+4. Save.
+5. Note the **OpenID Configuration URL** shown on the provider detail page –
+   something like `https://auth.example.com/application/o/filebrowser-ng/.well-known/openid-configuration`.
+   Use this as `OIDC_DISCOVERY_URL`.
+
+### 2 – Create an Application in Authentik
+
+1. **Applications → Applications → Create**
+2. Fill in:
+   - **Name**: `filebrowser-ng`
+   - **Slug**: `filebrowser-ng`
+   - **Provider**: select the provider you created above
+3. Save.
+
+### 3 – Add the smb_key attribute to users (optional but recommended)
+
+This step enables the "Remember password" feature. Skip it if you prefer users to
+enter their SMB password on every login.
+
+For each user that should be able to save their SMB password:
+
+1. **Directory → Users → [select user] → Edit**
+2. Under **Attributes** (JSON field), add:
+   ```json
+   {
+     "smb_key": "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4"
+   }
+   ```
+   Generate a unique random 32-character hex string per user, e.g.:
+   ```bash
+   openssl rand -hex 16
+   ```
+3. Save.
+
+> **Important**: each user needs their own unique `smb_key`. Never reuse the same
+> value across users.
+
+### 4 – Create a Property Mapping (Scope) in Authentik
+
+The `smb_key` attribute must be included in the ID Token as a custom claim.
+
+1. **Customisation → Property Mappings → Create**
+2. Choose **Scope Mapping**
+3. Fill in:
+   - **Name**: `filebrowser-ng smb_key`
+   - **Scope name**: `smb_key` (or any name – it is included automatically)
+   - **Expression**:
+     ```python
+     return {
+         "smb_key": user.attributes.get("smb_key", "")
+     }
+     ```
+4. Save.
+5. Go back to your **Provider → Edit** and add this mapping under **Advanced protocol settings → Scopes**.
+
+### 5 – Configure filebrowser-ng
+
+Add to your `docker-compose.yml`:
+
+```yaml
+environment:
+  SMB_SERVER: "192.168.1.100"
+  OIDC_ENABLED: "true"
+  OIDC_CLIENT_ID: "paste-client-id-here"
+  OIDC_CLIENT_SECRET: "paste-client-secret-here"
+  OIDC_DISCOVERY_URL: "https://auth.example.com/application/o/filebrowser-ng/.well-known/openid-configuration"
+  OIDC_REDIRECT_URI: "https://files.example.com/auth/oidc/callback"
+  OIDC_SMB_KEY_CLAIM: "smb_key"
+```
+
+### 6 – Test the login
+
+1. Open the filebrowser URL in a browser.
+2. You should see a single "Sign in with SSO" button.
+3. Clicking it redirects you to Authentik.
+4. After a successful login at Authentik you land on the SMB password form.
+5. Enter your Samba password. If your user has the `smb_key` attribute set, a
+   "Remember password" checkbox is available.
+6. Tick it and submit – from now on the SMB password form is skipped on subsequent logins.
+
+### Troubleshooting
+
+| Symptom | Likely cause |
+|---------|-------------|
+| "Identity provider unavailable" | `OIDC_DISCOVERY_URL` is wrong or Authentik unreachable from the container |
+| "Login was cancelled or denied" | Authentik denied access (check Application policy, user group) |
+| "Login response was invalid" | Redirect URI mismatch or `OIDC_CLIENT_SECRET` wrong |
+| "Remember password" checkbox is disabled | `smb_key` attribute or Property Mapping not set up (see steps 3–4) |
+| SMB password rejected after save | SMB password changed on the server; re-enter to update the stored value |
+
 ### Volumes
 
 | Host path | Container path | Purpose |
