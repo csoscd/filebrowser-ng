@@ -12,6 +12,22 @@ return [
     'login.submit'                => 'Anmelden',
     'login.error.credentials_required' => 'Bitte Benutzername und Passwort eingeben.',
     'login.error.invalid_credentials'  => 'Ungültige Anmeldedaten. Bitte erneut versuchen.',
+    'login.error.oidc_unavailable'     => 'Der Identitätsanbieter ist derzeit nicht erreichbar. Bitte später erneut versuchen.',
+    'login.error.oidc_denied'          => 'Die Anmeldung wurde abgebrochen oder vom Identitätsanbieter abgelehnt.',
+    'login.error.oidc_invalid'         => 'Die Anmeldeantwort war ungültig. Bitte erneut versuchen.',
+
+    // OIDC-Anmelde-Schaltfläche
+    'login.oidc.submit'                => 'Mit SSO anmelden',
+    'login.or'                         => 'oder',
+
+    // SMB-Zugangsdaten-Formular (nach OIDC-Anmeldung)
+    'login.smb.subtitle'               => 'Dateiserver-Passwort eingeben',
+    'login.smb.password'               => 'Dateiserver-Passwort (SMB)',
+    'login.smb.save_credentials'       => 'Passwort speichern (verschlüsselt)',
+    'login.smb.save_disabled'          => 'Passwort speichern (kein Schlüssel – smb_key-Claim konfigurieren)',
+    'login.smb.submit'                 => 'Verbinden',
+    'login.smb.error.password_required' => 'Bitte Dateiserver-Passwort eingeben.',
+    'login.smb.error.invalid_credentials' => 'Dateiserver-Passwort falsch. Bitte erneut versuchen.',
 
     // Browser
     'browser.shares'              => 'Freigaben',

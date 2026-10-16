@@ -12,6 +12,22 @@ return [
     'login.submit'                => 'Sign in',
     'login.error.credentials_required' => 'Please enter username and password.',
     'login.error.invalid_credentials'  => 'Invalid credentials. Please try again.',
+    'login.error.oidc_unavailable'     => 'The identity provider is currently unavailable. Please try again later.',
+    'login.error.oidc_denied'          => 'Login was cancelled or denied by the identity provider.',
+    'login.error.oidc_invalid'         => 'The login response was invalid. Please try again.',
+
+    // OIDC login button
+    'login.oidc.submit'                => 'Sign in with SSO',
+    'login.or'                         => 'or',
+
+    // SMB credential form (shown after OIDC login)
+    'login.smb.subtitle'               => 'Enter your file server password',
+    'login.smb.password'               => 'File server password (SMB)',
+    'login.smb.save_credentials'       => 'Remember password (encrypted)',
+    'login.smb.save_disabled'          => 'Remember password (no encryption key – configure smb_key claim)',
+    'login.smb.submit'                 => 'Connect',
+    'login.smb.error.password_required' => 'Please enter your file server password.',
+    'login.smb.error.invalid_credentials' => 'File server password incorrect. Please try again.',
 
     // Browser
     'browser.shares'              => 'Shares',

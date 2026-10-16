@@ -12,6 +12,22 @@ return [
     'login.submit'                => 'Se connecter',
     'login.error.credentials_required' => 'Veuillez saisir un nom d\'utilisateur et un mot de passe.',
     'login.error.invalid_credentials'  => 'Identifiants invalides. Veuillez réessayer.',
+    'login.error.oidc_unavailable'     => 'Le fournisseur d\'identité est actuellement indisponible. Veuillez réessayer plus tard.',
+    'login.error.oidc_denied'          => 'La connexion a été annulée ou refusée par le fournisseur d\'identité.',
+    'login.error.oidc_invalid'         => 'La réponse de connexion était invalide. Veuillez réessayer.',
+
+    // Bouton de connexion OIDC
+    'login.oidc.submit'                => 'Se connecter avec SSO',
+    'login.or'                         => 'ou',
+
+    // Formulaire SMB (après connexion OIDC)
+    'login.smb.subtitle'               => 'Saisissez votre mot de passe serveur de fichiers',
+    'login.smb.password'               => 'Mot de passe du serveur de fichiers (SMB)',
+    'login.smb.save_credentials'       => 'Mémoriser le mot de passe (chiffré)',
+    'login.smb.save_disabled'          => 'Mémoriser le mot de passe (aucune clé – configurer le claim smb_key)',
+    'login.smb.submit'                 => 'Connecter',
+    'login.smb.error.password_required' => 'Veuillez saisir votre mot de passe serveur de fichiers.',
+    'login.smb.error.invalid_credentials' => 'Mot de passe du serveur de fichiers incorrect. Veuillez réessayer.',
 
     // Browser
     'browser.shares'              => 'Partages',
