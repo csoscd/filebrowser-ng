@@ -7,6 +7,8 @@ Web-based file manager for SMB/Samba shares. Users log in with their Samba crede
 [![Docker Hub](https://img.shields.io/docker/v/cs1711/filebrowser-ng?label=Docker%20Hub)](https://hub.docker.com/r/cs1711/filebrowser-ng)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 
+> **Deutsche Dokumentation:** [README_DE.md](README_DE.md)
+
 ---
 
 ## Features
