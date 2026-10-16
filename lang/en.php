@@ -33,6 +33,7 @@ return [
     'browser.shares'              => 'Shares',
     'browser.no_share'            => 'Select a share from the sidebar',
     'browser.new_folder'          => 'New folder',
+    'browser.refresh'             => 'Refresh',
     'browser.upload'              => 'Upload',
     'browser.download'            => 'Download',
     'browser.download_zip'        => 'Download ZIP',

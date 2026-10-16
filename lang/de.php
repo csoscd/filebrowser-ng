@@ -33,6 +33,7 @@ return [
     'browser.shares'              => 'Freigaben',
     'browser.no_share'            => 'Freigabe aus der Seitenleiste auswählen',
     'browser.new_folder'          => 'Neuer Ordner',
+    'browser.refresh'             => 'Aktualisieren',
     'browser.upload'              => 'Hochladen',
     'browser.download'            => 'Herunterladen',
     'browser.download_zip'        => 'ZIP herunterladen',

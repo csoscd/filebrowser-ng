@@ -215,6 +215,17 @@
 
                         <!-- Action buttons -->
                         <div class="flex items-center gap-2 flex-shrink-0">
+                            <button @click="loadFiles()"
+                                    :disabled="loadingFiles"
+                                    class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm bg-white border border-gray-300
+                                           rounded-lg hover:bg-gray-50 transition font-medium text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    :title="'<?= htmlspecialchars($t->t('browser.refresh'), ENT_QUOTES) ?>'">
+                                <svg class="w-4 h-4" :class="loadingFiles ? 'animate-spin' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                          d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                                </svg>
+                                <span class="hidden sm:inline"><?= htmlspecialchars($t->t('browser.refresh'), ENT_QUOTES) ?></span>
+                            </button>
                             <button @click="showMkdirDialog = true"
                                     class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm bg-white border border-gray-300
                                            rounded-lg hover:bg-gray-50 transition font-medium text-gray-700">

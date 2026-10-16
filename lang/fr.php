@@ -33,6 +33,7 @@ return [
     'browser.shares'              => 'Partages',
     'browser.no_share'            => 'Sélectionnez un partage dans la barre latérale',
     'browser.new_folder'          => 'Nouveau dossier',
+    'browser.refresh'             => 'Actualiser',
     'browser.upload'              => 'Envoyer',
     'browser.download'            => 'Télécharger',
     'browser.download_zip'        => 'Télécharger en ZIP',
