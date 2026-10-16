@@ -20,8 +20,8 @@
             <?php endif; ?>
 
             <?php if (!empty($oidc_enabled)): ?>
-            <!-- OIDC login -->
-            <form method="POST" action="/auth/oidc">
+            <!-- OIDC login button -->
+            <form method="POST" action="/auth/oidc" class="mb-5">
                 <button
                     type="submit"
                     class="w-full flex items-center justify-center gap-2 py-2.5 px-4
@@ -36,8 +36,19 @@
                     <?= htmlspecialchars($t->t('login.oidc.submit'), ENT_QUOTES) ?>
                 </button>
             </form>
-            <?php else: ?>
-            <!-- Classic SMB login -->
+
+            <!-- Divider -->
+            <div class="relative mb-5">
+                <div class="absolute inset-0 flex items-center">
+                    <div class="w-full border-t border-gray-200"></div>
+                </div>
+                <div class="relative flex justify-center text-xs text-gray-400 uppercase tracking-wide">
+                    <span class="bg-white px-2"><?= htmlspecialchars($t->t('login.or'), ENT_QUOTES) ?></span>
+                </div>
+            </div>
+            <?php endif; ?>
+
+            <!-- Classic SMB login (always shown) -->
             <form method="POST" action="/auth/login" class="space-y-5">
                 <div>
                     <label for="username" class="block text-sm font-medium text-gray-700 mb-1">
@@ -48,7 +59,7 @@
                         id="username"
                         name="username"
                         required
-                        autofocus
+                        <?= empty($oidc_enabled) ? 'autofocus' : '' ?>
                         autocomplete="username"
                         class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm
                                focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500
@@ -74,14 +85,13 @@
 
                 <button
                     type="submit"
-                    class="w-full py-2.5 px-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold
+                    class="w-full py-2.5 px-4 <?= !empty($oidc_enabled) ? 'bg-gray-100 hover:bg-gray-200 text-gray-700' : 'bg-blue-600 hover:bg-blue-700 text-white' ?> font-semibold
                            rounded-lg shadow-sm transition text-sm focus:outline-none focus:ring-2
                            focus:ring-blue-500 focus:ring-offset-2"
                 >
                     <?= htmlspecialchars($t->t('login.submit'), ENT_QUOTES) ?>
                 </button>
             </form>
-            <?php endif; ?>
         </div>
     </div>
 </div>

@@ -18,6 +18,7 @@ return [
 
     // OIDC login button
     'login.oidc.submit'                => 'Sign in with SSO',
+    'login.or'                         => 'or',
 
     // SMB credential form (shown after OIDC login)
     'login.smb.subtitle'               => 'Enter your file server password',

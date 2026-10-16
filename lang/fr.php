@@ -18,6 +18,7 @@ return [
 
     // Bouton de connexion OIDC
     'login.oidc.submit'                => 'Se connecter avec SSO',
+    'login.or'                         => 'ou',
 
     // Formulaire SMB (après connexion OIDC)
     'login.smb.subtitle'               => 'Saisissez votre mot de passe serveur de fichiers',

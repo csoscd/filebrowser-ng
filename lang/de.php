@@ -18,6 +18,7 @@ return [
 
     // OIDC-Anmelde-Schaltfläche
     'login.oidc.submit'                => 'Mit SSO anmelden',
+    'login.or'                         => 'oder',
 
     // SMB-Zugangsdaten-Formular (nach OIDC-Anmeldung)
     'login.smb.subtitle'               => 'Dateiserver-Passwort eingeben',

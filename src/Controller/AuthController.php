@@ -47,11 +47,6 @@ class AuthController
 
     public function login(Request $request): void
     {
-        // If OIDC is configured, the classic login form is not shown; guard here too.
-        if ($this->oidc?->isConfigured()) {
-            Response::redirect('/');
-        }
-
         $username = trim((string) $request->getBody('username', ''));
         $password = (string) $request->getBody('password', '');
 
