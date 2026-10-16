@@ -213,6 +213,21 @@
                             </template>
                         </nav>
 
+                        <!-- Filter input -->
+                        <div class="relative flex-shrink-0">
+                            <svg class="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none"
+                                 fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                      d="M21 21l-4.35-4.35M17 11A6 6 0 105 11a6 6 0 0012 0z"/>
+                            </svg>
+                            <input type="search"
+                                   x-model="filterQuery"
+                                   @keydown.escape="filterQuery = ''"
+                                   placeholder="<?= htmlspecialchars($t->t('browser.filter_placeholder'), ENT_QUOTES) ?>"
+                                   class="pl-7 pr-2 py-1.5 text-sm border border-gray-300 rounded-lg w-36 sm:w-48
+                                          focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        </div>
+
                         <!-- Action buttons -->
                         <div class="flex items-center gap-2 flex-shrink-0">
                             <button @click="loadFiles()"
@@ -347,7 +362,7 @@
                             </div>
                         </template>
 
-                        <!-- Empty -->
+                        <!-- Empty folder -->
                         <template x-if="!loadingFiles && files.length === 0">
                             <div class="flex flex-col items-center justify-center py-20 text-gray-400">
                                 <svg class="w-12 h-12 mb-3 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -356,6 +371,20 @@
                                 </svg>
                                 <p class="text-sm"><?= htmlspecialchars($t->t('browser.empty'), ENT_QUOTES) ?></p>
                                 <p class="text-xs mt-1 text-gray-300"><?= htmlspecialchars($t->t('upload.drop'), ENT_QUOTES) ?></p>
+                            </div>
+                        </template>
+
+                        <!-- No filter results -->
+                        <template x-if="!loadingFiles && files.length > 0 && sortedFiles.length === 0">
+                            <div class="flex flex-col items-center justify-center py-20 text-gray-400">
+                                <svg class="w-12 h-12 mb-3 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                                          d="M21 21l-4.35-4.35M17 11A6 6 0 105 11a6 6 0 0012 0z"/>
+                                </svg>
+                                <p class="text-sm"><?= htmlspecialchars($t->t('browser.filter_no_results'), ENT_QUOTES) ?></p>
+                                <button @click="filterQuery = ''" class="text-xs mt-1 text-blue-500 hover:underline">
+                                    <?= htmlspecialchars($t->t('browser.filter_clear'), ENT_QUOTES) ?>
+                                </button>
                             </div>
                         </template>
 
@@ -932,6 +961,8 @@ function fileBrowser() {
         flashType: 'success',
         flashTimer: null,
 
+        filterQuery: '',
+
         sortColumn: 'name',
         sortDir: 'asc',
 
@@ -960,7 +991,9 @@ function fileBrowser() {
         pickerExecuteStatus: '',
 
         get sortedFiles() {
-            return [...this.files].sort((a, b) => {
+            const q = this.filterQuery.trim().toLowerCase();
+            const base = q ? this.files.filter(f => f.name.toLowerCase().includes(q)) : this.files;
+            return [...base].sort((a, b) => {
                 if (a.type !== b.type) return a.type === 'dir' ? -1 : 1;
                 let cmp = 0;
                 if (this.sortColumn === 'name') {
@@ -1053,11 +1086,13 @@ function fileBrowser() {
             this.currentShare  = name;
             this.currentServer = serverHost ?? null;
             this.currentPath   = '';
+            this.filterQuery   = '';
             await this.loadFiles();
         },
 
         async navigate(path) {
             this.currentPath = path;
+            this.filterQuery = '';
             await this.loadFiles();
         },
 
