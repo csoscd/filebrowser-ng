@@ -15,6 +15,8 @@ class SmbProvider implements StorageProviderInterface
     private ?object $server = null;
     /** @var array<string, IShare> */
     private array $shareCache = [];
+    /** @var list<array{name:string,type:string}>|null */
+    private ?array $sharesListCache = null;
 
     private string $connectionHost     = '';
     private string $connectionUsername = '';
@@ -35,9 +37,16 @@ class SmbProvider implements StorageProviderInterface
             $auth   = new BasicAuth($username, $domain !== '' ? $domain : null, $password);
             $factory = new ServerFactory();
             $server  = $factory->createServer($host, $auth);
-            $server->listShares(); // verify credentials
+            $rawShares = $server->listShares(); // verify credentials + cache result
             $this->server           = $server;
             $this->shareCache       = [];
+            $this->sharesListCache  = [];
+            foreach ($rawShares as $share) {
+                $name = $share->getName();
+                if (!str_ends_with($name, '$')) {
+                    $this->sharesListCache[] = ['name' => $name, 'type' => 'smb'];
+                }
+            }
             $this->connectionHost     = $host;
             $this->connectionUsername = $username;
             $this->connectionPassword = $password;
@@ -57,6 +66,9 @@ class SmbProvider implements StorageProviderInterface
     public function listShares(): array
     {
         $this->assertConnected();
+        if ($this->sharesListCache !== null) {
+            return $this->sharesListCache;
+        }
         $shares = [];
         foreach ($this->server->listShares() as $share) {
             $name = $share->getName();
@@ -64,7 +76,7 @@ class SmbProvider implements StorageProviderInterface
                 $shares[] = ['name' => $name, 'type' => 'smb'];
             }
         }
-        return $shares;
+        return $this->sharesListCache = $shares;
     }
 
     public function getDiskInfo(string $shareName): ?array
