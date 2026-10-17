@@ -34,6 +34,7 @@ return [
     'browser.no_share'            => 'Freigabe aus der Seitenleiste auswählen',
     'browser.new_folder'          => 'Neuer Ordner',
     'browser.refresh'             => 'Aktualisieren',
+    'dialog.picker.new_folder'    => 'Neuer Ordner hier',
     'browser.filter_placeholder'  => 'Filtern…',
     'browser.filter_no_results'   => 'Keine Dateien entsprechen dem Filter.',
     'browser.filter_clear'        => 'Filter löschen',

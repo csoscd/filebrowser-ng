@@ -34,6 +34,7 @@ return [
     'browser.no_share'            => 'Sélectionnez un partage dans la barre latérale',
     'browser.new_folder'          => 'Nouveau dossier',
     'browser.refresh'             => 'Actualiser',
+    'dialog.picker.new_folder'    => 'Nouveau dossier ici',
     'browser.filter_placeholder'  => 'Filtrer…',
     'browser.filter_no_results'   => 'Aucun fichier ne correspond au filtre.',
     'browser.filter_clear'        => 'Effacer le filtre',

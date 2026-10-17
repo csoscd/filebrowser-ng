@@ -658,6 +658,7 @@
     <!-- ── Modal: New folder ────────────────────────────────────────────────── -->
     <div x-show="showMkdirDialog" x-cloak
          class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4"
+         x-effect="showMkdirDialog && $nextTick(() => $refs.mkdirInput && $refs.mkdirInput.focus())"
          @keydown.escape.window="showMkdirDialog = false">
         <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6" @click.stop>
             <h2 class="text-lg font-semibold mb-4">
@@ -805,6 +806,40 @@
                 <p class="px-4 pb-1 pt-1 text-xs text-gray-400">
                     <?= htmlspecialchars($t->t('dialog.picker.select_hint'), ENT_QUOTES) ?>
                 </p>
+
+                <!-- Picker: new folder inline -->
+                <template x-if="pickerShare !== ''">
+                    <div class="px-4 pb-3 border-t border-gray-100 pt-3 flex-shrink-0">
+                        <template x-if="!pickerMkdirMode">
+                            <button @click="pickerMkdirMode = true; pickerMkdirValue = ''; $nextTick(() => $refs.pickerMkdirInput && $refs.pickerMkdirInput.focus())"
+                                    class="inline-flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-800 font-medium transition">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+                                </svg>
+                                <?= htmlspecialchars($t->t('dialog.picker.new_folder'), ENT_QUOTES) ?>
+                            </button>
+                        </template>
+                        <template x-if="pickerMkdirMode">
+                            <div class="flex items-center gap-2">
+                                <input type="text" x-model="pickerMkdirValue"
+                                       x-ref="pickerMkdirInput"
+                                       @keydown.enter="confirmPickerMkdir()"
+                                       @keydown.escape="pickerMkdirMode = false"
+                                       placeholder="<?= htmlspecialchars($t->t('dialog.mkdir.label'), ENT_QUOTES) ?>"
+                                       class="flex-1 px-2 py-1.5 border border-gray-300 rounded-lg text-sm
+                                              focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                <button @click="confirmPickerMkdir()"
+                                        class="px-3 py-1.5 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition">
+                                    <?= htmlspecialchars($t->t('dialog.mkdir.confirm'), ENT_QUOTES) ?>
+                                </button>
+                                <button @click="pickerMkdirMode = false"
+                                        class="px-3 py-1.5 text-sm font-medium text-gray-600 hover:text-gray-800 transition">
+                                    <?= htmlspecialchars($t->t('dialog.mkdir.cancel'), ENT_QUOTES) ?>
+                                </button>
+                            </div>
+                        </template>
+                    </div>
+                </template>
 
                 <!-- Action buttons (disabled at shares level) -->
                 <div class="px-5 py-4 border-t border-gray-100 flex gap-2 justify-end flex-shrink-0">
@@ -988,6 +1023,8 @@ function fileBrowser() {
         pickerShares: [],
         pickerFolders: [],
         pickerLoading: false,
+        pickerMkdirMode: false,
+        pickerMkdirValue: '',
         pickerExecuting: false,
         pickerExecuteStatus: '',
 
@@ -1403,7 +1440,8 @@ function fileBrowser() {
         },
 
         async pickerNavigate(path) {
-            this.pickerPath = path;
+            this.pickerPath      = path;
+            this.pickerMkdirMode = false;
             await this.loadPickerContent();
         },
 
@@ -1527,6 +1565,33 @@ function fileBrowser() {
                 if (data.success) {
                     this.mkdirValue = '';
                     await this.loadFiles();
+                } else {
+                    this.showFlash(data.error ?? i18n.errorMkdir, 'error');
+                }
+            } catch (e) {
+                this.showFlash(i18n.errorMkdir, 'error');
+            }
+        },
+
+        async confirmPickerMkdir() {
+            if (!this.pickerMkdirValue.trim()) return;
+            const name = this.pickerMkdirValue.trim();
+            this.pickerMkdirMode  = false;
+            this.pickerMkdirValue = '';
+            try {
+                const res = await fetch('/file/mkdir', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        share:  this.pickerShare,
+                        server: this.pickerServer?.host ?? '',
+                        path:   this.pickerPath,
+                        name:   name,
+                    }),
+                });
+                const data = await res.json();
+                if (data.success) {
+                    await this.loadPickerContent();
                 } else {
                     this.showFlash(data.error ?? i18n.errorMkdir, 'error');
                 }

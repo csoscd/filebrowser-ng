@@ -34,6 +34,7 @@ return [
     'browser.no_share'            => 'Select a share from the sidebar',
     'browser.new_folder'          => 'New folder',
     'browser.refresh'             => 'Refresh',
+    'dialog.picker.new_folder'    => 'New folder here',
     'browser.filter_placeholder'  => 'Filter…',
     'browser.filter_no_results'   => 'No files match your filter.',
     'browser.filter_clear'        => 'Clear filter',
